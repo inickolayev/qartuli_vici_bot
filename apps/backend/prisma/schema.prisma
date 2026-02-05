@@ -1,0 +1,411 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== USERS ====================
+
+model User {
+  id              String    @id @default(cuid())
+  telegramId      BigInt    @unique
+  username        String?
+  firstName       String?
+  lastName        String?
+  languageCode    String?   @default("ru")
+  timezone        String?   @default("Europe/Moscow")
+
+  // Gamification
+  xp              Int       @default(0)
+  level           Int       @default(1)
+  currentStreak   Int       @default(0)
+  longestStreak   Int       @default(0)
+  lastActivityAt  DateTime?
+
+  // Settings
+  quizFrequency   Int       @default(3)
+  quietHoursStart Int?
+  quietHoursEnd   Int?
+  isAdmin         Boolean   @default(false)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  wordProgress       UserWordProgress[]
+  quizSessions       QuizSession[]
+  achievements       UserAchievement[]
+  collections        UserCollection[]
+  createdWords       Word[]             @relation("WordCreator")
+  createdCollections Collection[]       @relation("CollectionCreator")
+  dailyStats         DailyStats[]
+
+  @@index([telegramId])
+  @@index([lastActivityAt])
+}
+
+// ==================== WORDS ====================
+
+model Word {
+  id              String    @id @default(cuid())
+
+  georgian        String
+  russianPrimary  String
+
+  russianAlt      String[]
+  georgianForms   String[]
+  transcription   String?
+  partOfSpeech    PartOfSpeech?
+  exampleKa       String?
+  exampleRu       String?
+  audioUrl        String?
+  notes           String?
+
+  difficulty      Difficulty @default(MEDIUM)
+  frequency       Int?
+  tags            String[]
+
+  creatorId       String?
+  creator         User?     @relation("WordCreator", fields: [creatorId], references: [id])
+  isPublic        Boolean   @default(false)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  collections     CollectionWord[]
+  userProgress    UserWordProgress[]
+  quizAnswers     QuizAnswer[]
+
+  @@unique([georgian, russianPrimary])
+  @@index([georgian])
+  @@index([russianPrimary])
+  @@index([difficulty])
+}
+
+enum PartOfSpeech {
+  NOUN
+  VERB
+  ADJECTIVE
+  ADVERB
+  PRONOUN
+  PREPOSITION
+  CONJUNCTION
+  INTERJECTION
+  NUMERAL
+  PARTICLE
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+// ==================== COLLECTIONS ====================
+
+model Collection {
+  id              String    @id @default(cuid())
+  name            String
+  description     String?
+
+  type            CollectionType @default(PRIVATE)
+  shareCode       String?   @unique
+  creatorId       String?
+  creator         User?     @relation("CollectionCreator", fields: [creatorId], references: [id])
+
+  wordCount       Int       @default(0)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  words           CollectionWord[]
+  users           UserCollection[]
+
+  @@index([shareCode])
+  @@index([type])
+  @@index([creatorId])
+}
+
+enum CollectionType {
+  DEFAULT
+  PRIVATE
+  SHARED
+}
+
+model CollectionWord {
+  id              String    @id @default(cuid())
+  collectionId    String
+  wordId          String
+  orderIndex      Int       @default(0)
+
+  collection      Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  word            Word       @relation(fields: [wordId], references: [id], onDelete: Cascade)
+
+  addedAt         DateTime  @default(now())
+
+  @@unique([collectionId, wordId])
+  @@index([collectionId])
+}
+
+model UserCollection {
+  id              String    @id @default(cuid())
+  userId          String
+  collectionId    String
+  isActive        Boolean   @default(true)
+
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  collection      Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  addedAt         DateTime  @default(now())
+
+  @@unique([userId, collectionId])
+  @@index([userId, isActive])
+}
+
+// ==================== USER PROGRESS ====================
+
+model UserWordProgress {
+  id              String    @id @default(cuid())
+  userId          String
+  wordId          String
+
+  rating          Int       @default(0)
+
+  correctCount    Int       @default(0)
+  incorrectCount  Int       @default(0)
+  totalAttempts   Int       @default(0)
+
+  lastSeenAt      DateTime?
+  lastCorrectAt   DateTime?
+  lastIncorrectAt DateTime?
+  nextReviewAt    DateTime?
+
+  status          LearningStatus @default(NEW)
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word            Word      @relation(fields: [wordId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, wordId])
+  @@index([userId, status])
+  @@index([userId, rating])
+  @@index([userId, nextReviewAt])
+}
+
+enum LearningStatus {
+  NEW
+  LEARNING
+  LEARNED
+  MASTERED
+}
+
+// ==================== QUIZ ====================
+
+model QuizSession {
+  id              String    @id @default(cuid())
+  userId          String
+
+  type            QuizSessionType @default(SCHEDULED)
+  status          QuizSessionStatus @default(IN_PROGRESS)
+
+  totalQuestions  Int       @default(0)
+  correctAnswers  Int       @default(0)
+  xpEarned        Int       @default(0)
+
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers         QuizAnswer[]
+
+  @@index([userId, status])
+  @@index([userId, startedAt])
+}
+
+enum QuizSessionType {
+  SCHEDULED
+  MANUAL
+  REVIEW
+}
+
+enum QuizSessionStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+model QuizAnswer {
+  id              String    @id @default(cuid())
+  sessionId       String
+  wordId          String
+
+  exerciseType    ExerciseType
+  question        String
+  correctAnswer   String
+  options         String[]
+
+  userAnswer      String?
+  isCorrect       Boolean?
+
+  askedAt         DateTime  @default(now())
+  answeredAt      DateTime?
+  responseTimeMs  Int?
+
+  verificationMethod VerificationMethod?
+  llmVerificationId  String?
+
+  session         QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  word            Word        @relation(fields: [wordId], references: [id])
+
+  @@index([sessionId])
+  @@index([wordId])
+  @@index([askedAt])
+  @@index([isCorrect])
+}
+
+enum ExerciseType {
+  KA_TO_RU
+  RU_TO_KA
+  MULTIPLE_CHOICE
+  USE_IN_PHRASE
+}
+
+enum VerificationMethod {
+  EXACT_MATCH
+  NORMALIZED_MATCH
+  ALLOWED_FORMS
+  SEMANTIC_SIMILARITY
+  LLM_VERIFICATION
+}
+
+// ==================== LLM CACHE ====================
+
+model LLMVerificationCache {
+  id              String    @id @default(cuid())
+
+  inputHash       String    @unique
+
+  exerciseType    ExerciseType
+  expectedAnswer  String
+  userAnswer      String
+  wordId          String?
+
+  isCorrect       Boolean
+  explanation     String?
+  confidence      Float?
+
+  promptTokens    Int
+  completionTokens Int
+  model           String
+  costUsd         Float
+
+  createdAt       DateTime  @default(now())
+  expiresAt       DateTime?
+
+  @@index([inputHash])
+  @@index([createdAt])
+}
+
+model LLMUsageLog {
+  id              String    @id @default(cuid())
+  userId          String?
+
+  operation       LLMOperation
+  model           String
+
+  promptTokens    Int
+  completionTokens Int
+  totalTokens     Int
+  costUsd         Float
+
+  latencyMs       Int
+
+  createdAt       DateTime  @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([operation])
+}
+
+enum LLMOperation {
+  ANSWER_VERIFICATION
+  WORD_ENRICHMENT
+  PHRASE_GENERATION
+  PHRASE_VALIDATION
+}
+
+// ==================== GAMIFICATION ====================
+
+model Achievement {
+  id              String    @id @default(cuid())
+
+  code            String    @unique
+  name            String
+  description     String
+  icon            String?
+
+  ruleType        AchievementRuleType
+  ruleConfig      Json
+
+  xpReward        Int       @default(0)
+
+  isHidden        Boolean   @default(false)
+  isActive        Boolean   @default(true)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  users           UserAchievement[]
+
+  @@index([isActive])
+}
+
+enum AchievementRuleType {
+  WORDS_LEARNED
+  STREAK_DAYS
+  TOTAL_XP
+  QUIZ_PERFECT
+  COLLECTION_COMPLETE
+  DAILY_GOAL
+  ACCURACY_RATE
+  CUSTOM
+}
+
+model UserAchievement {
+  id              String    @id @default(cuid())
+  userId          String
+  achievementId   String
+
+  unlockedAt      DateTime  @default(now())
+  progress        Int?
+
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement     Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+}
+
+model DailyStats {
+  id              String    @id @default(cuid())
+  userId          String
+  date            DateTime  @db.Date
+
+  quizzesCompleted Int      @default(0)
+  wordsReviewed    Int      @default(0)
+  correctAnswers   Int      @default(0)
+  incorrectAnswers Int      @default(0)
+  xpEarned         Int      @default(0)
+  newWordsLearned  Int      @default(0)
+  timeSpentSec     Int      @default(0)
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
