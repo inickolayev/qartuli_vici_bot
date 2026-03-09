@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
 import { PinoLogger } from 'nestjs-pino'
-import { QuizSessionStatus, VerificationMethod } from '@prisma/client'
+import { ExerciseType, QuizSessionStatus, VerificationMethod } from '@prisma/client'
 import { PrismaService } from '../../common/prisma/prisma.service'
 import { RedisService } from '../../common/redis/redis.service'
 import { WordSelectorService } from './services/word-selector.service'
@@ -323,7 +323,22 @@ export class QuizService {
       })
 
       const correctCount = answers.filter((a) => a.isCorrect).length
-      const xpEarned = correctCount * 10 // 10 XP per correct answer
+
+      // Calculate XP based on exercise type difficulty
+      // MULTIPLE_CHOICE: 5 XP (easy), KA_TO_RU: 10 XP (medium), RU_TO_KA: 15 XP (hard)
+      const xpEarned = answers
+        .filter((a) => a.isCorrect)
+        .reduce((total, answer) => {
+          switch (answer.exerciseType) {
+            case ExerciseType.MULTIPLE_CHOICE:
+              return total + 5
+            case ExerciseType.RU_TO_KA:
+              return total + 15
+            case ExerciseType.KA_TO_RU:
+            default:
+              return total + 10
+          }
+        }, 0)
 
       await this.prisma.quizSession.update({
         where: { id: sessionId },
