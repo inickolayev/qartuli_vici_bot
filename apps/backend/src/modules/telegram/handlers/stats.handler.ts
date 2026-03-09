@@ -141,8 +141,110 @@ export class StatsHandler {
     await ctx.answerCbQuery()
   }
 
+  @Action('words:inprogress')
+  async onWordsInProgress(@Ctx() ctx: Context) {
+    try {
+      const from = ctx.from
+      if (!from) return
+
+      const user = await this.prisma.user.findUnique({
+        where: { telegramId: BigInt(from.id) },
+      })
+
+      if (!user) {
+        await ctx.answerCbQuery(MESSAGES.ERROR_NOT_REGISTERED)
+        return
+      }
+
+      // Get words with streak > 0 that are not yet mastered today
+      const inProgressWords = await this.prisma.userWordProgress.findMany({
+        where: {
+          userId: user.id,
+          consecutiveCorrect: { gt: 0 },
+          masteredToday: false,
+        },
+        include: {
+          word: true,
+        },
+        orderBy: {
+          consecutiveCorrect: 'desc',
+        },
+        take: 15,
+      })
+
+      // Get words already mastered today
+      const masteredTodayWords = await this.prisma.userWordProgress.findMany({
+        where: {
+          userId: user.id,
+          masteredToday: true,
+        },
+        include: {
+          word: true,
+        },
+        take: 10,
+      })
+
+      const message = this.formatInProgressMessage(
+        inProgressWords,
+        masteredTodayWords,
+        user.todayNewWordsCount,
+        user.newWordsPerDay,
+      )
+
+      await ctx.editMessageText(message, {
+        parse_mode: 'HTML',
+        ...Markup.inlineKeyboard([[Markup.button.callback('« Назад к статистике', 'stats:show')]]),
+      })
+      await ctx.answerCbQuery()
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to show in-progress words')
+      await ctx.answerCbQuery(MESSAGES.ERROR_GENERIC)
+    }
+  }
+
+  private formatInProgressMessage(
+    inProgress: Array<{
+      consecutiveCorrect: number
+      word: { georgian: string; russianPrimary: string }
+    }>,
+    masteredToday: Array<{
+      word: { georgian: string; russianPrimary: string }
+    }>,
+    todayCount: number,
+    dailyGoal: number,
+  ): string {
+    let message = `🔥 <b>Прогресс за сегодня</b>\n\n`
+    message += `📊 Засчитано: <b>${todayCount}/${dailyGoal}</b> слов\n\n`
+
+    if (inProgress.length > 0) {
+      message += `⏳ <b>В процессе</b> (нужно добить):\n`
+      for (const wp of inProgress) {
+        const remaining = 3 - wp.consecutiveCorrect
+        const streakBar = '✅'.repeat(wp.consecutiveCorrect) + '⬜'.repeat(remaining)
+        message += `${streakBar} <b>${wp.word.georgian}</b> — ${wp.word.russianPrimary}\n`
+      }
+      message += '\n'
+    } else {
+      message += `⏳ Нет слов в процессе\n\n`
+    }
+
+    if (masteredToday.length > 0) {
+      message += `✅ <b>Засчитано сегодня:</b>\n`
+      for (const wp of masteredToday) {
+        message += `✅✅✅ <b>${wp.word.georgian}</b> — ${wp.word.russianPrimary}\n`
+      }
+    }
+
+    if (inProgress.length === 0 && masteredToday.length === 0) {
+      message += `💡 Начни квиз, чтобы учить новые слова!`
+    }
+
+    return message
+  }
+
   private createStatsKeyboard() {
     return Markup.inlineKeyboard([
+      [Markup.button.callback('🔥 В процессе', 'words:inprogress')],
       [Markup.button.callback('📚 Мои слова', 'words:list:0')],
       [Markup.button.callback('« Назад', 'menu:main')],
     ])
