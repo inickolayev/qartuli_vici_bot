@@ -16,6 +16,7 @@ import { QuizHandler } from './handlers/quiz.handler'
 import { AddWordHandler } from './handlers/add-word.handler'
 import { BulkImportHandler } from './handlers/bulk-import.handler'
 import { SettingsHandler } from './handlers/settings.handler'
+import { WordEditHandler } from './handlers/word-edit.handler'
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { SettingsHandler } from './handlers/settings.handler'
     StartHandler,
     CommandHandler,
     CallbackHandler,
+    WordEditHandler,
     QuizHandler,
     AddWordHandler,
     BulkImportHandler,

@@ -364,6 +364,299 @@ const BASIC_GEORGIAN_WORDS = [
   },
 ]
 
+// Household & Everyday Life Words (Быт)
+const HOUSEHOLD_WORDS = [
+  // Rooms & Home
+  {
+    georgian: 'ოთახი',
+    russianPrimary: 'комната',
+    russianAlt: [],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'სამზარეულო',
+    russianPrimary: 'кухня',
+    russianAlt: [],
+    difficulty: Difficulty.MEDIUM,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'საძინებელი',
+    russianPrimary: 'спальня',
+    russianAlt: [],
+    difficulty: Difficulty.MEDIUM,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'აბაზანა',
+    russianPrimary: 'ванная',
+    russianAlt: ['ванна'],
+    difficulty: Difficulty.MEDIUM,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'კარი',
+    russianPrimary: 'дверь',
+    russianAlt: [],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'ფანჯარა',
+    russianPrimary: 'окно',
+    russianAlt: [],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'კედელი',
+    russianPrimary: 'стена',
+    russianAlt: [],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'იატაკი',
+    russianPrimary: 'пол',
+    russianAlt: [],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'ჭერი',
+    russianPrimary: 'потолок',
+    russianAlt: [],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+
+  // Furniture
+  {
+    georgian: 'მაგიდა',
+    russianPrimary: 'стол',
+    russianAlt: [],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'სკამი',
+    russianPrimary: 'стул',
+    russianAlt: [],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'საწოლი',
+    russianPrimary: 'кровать',
+    russianAlt: [],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'კარადა',
+    russianPrimary: 'шкаф',
+    russianAlt: [],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'დივანი',
+    russianPrimary: 'диван',
+    russianAlt: [],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'სარკე',
+    russianPrimary: 'зеркало',
+    russianAlt: [],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+
+  // Kitchen items
+  {
+    georgian: 'თეფში',
+    russianPrimary: 'тарелка',
+    russianAlt: [],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'ჭიქა',
+    russianPrimary: 'стакан',
+    russianAlt: ['чашка'],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'კოვზი',
+    russianPrimary: 'ложка',
+    russianAlt: [],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'ჩანგალი',
+    russianPrimary: 'вилка',
+    russianAlt: [],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'დანა',
+    russianPrimary: 'нож',
+    russianAlt: [],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'ქვაბი',
+    russianPrimary: 'кастрюля',
+    russianAlt: [],
+    difficulty: Difficulty.MEDIUM,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'მაცივარი',
+    russianPrimary: 'холодильник',
+    russianAlt: [],
+    difficulty: Difficulty.MEDIUM,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+
+  // Appliances & Items
+  {
+    georgian: 'ტელევიზორი',
+    russianPrimary: 'телевизор',
+    russianAlt: [],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'ტელეფონი',
+    russianPrimary: 'телефон',
+    russianAlt: [],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'კომპიუტერი',
+    russianPrimary: 'компьютер',
+    russianAlt: [],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'ნათურა',
+    russianPrimary: 'лампочка',
+    russianAlt: ['лампа'],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+  {
+    georgian: 'გასაღები',
+    russianPrimary: 'ключ',
+    russianAlt: [],
+    difficulty: Difficulty.EASY,
+    partOfSpeech: PartOfSpeech.NOUN,
+  },
+
+  // Everyday Verbs
+  {
+    georgian: 'ვჭამ',
+    russianPrimary: 'ем',
+    russianAlt: ['я ем', 'кушаю'],
+    difficulty: Difficulty.MEDIUM,
+    partOfSpeech: PartOfSpeech.VERB,
+  },
+  {
+    georgian: 'ვსვამ',
+    russianPrimary: 'пью',
+    russianAlt: ['я пью'],
+    difficulty: Difficulty.MEDIUM,
+    partOfSpeech: PartOfSpeech.VERB,
+  },
+  {
+    georgian: 'ვძინავ',
+    russianPrimary: 'сплю',
+    russianAlt: ['я сплю'],
+    difficulty: Difficulty.MEDIUM,
+    partOfSpeech: PartOfSpeech.VERB,
+  },
+  {
+    georgian: 'ვიღვიძებ',
+    russianPrimary: 'просыпаюсь',
+    russianAlt: ['я просыпаюсь'],
+    difficulty: Difficulty.MEDIUM,
+    partOfSpeech: PartOfSpeech.VERB,
+  },
+  {
+    georgian: 'ვხარშავ',
+    russianPrimary: 'готовлю',
+    russianAlt: ['я готовлю', 'варю'],
+    difficulty: Difficulty.MEDIUM,
+    partOfSpeech: PartOfSpeech.VERB,
+  },
+  {
+    georgian: 'ვრეცხავ',
+    russianPrimary: 'мою',
+    russianAlt: ['я мою', 'стираю'],
+    difficulty: Difficulty.MEDIUM,
+    partOfSpeech: PartOfSpeech.VERB,
+  },
+  {
+    georgian: 'ვასუფთავებ',
+    russianPrimary: 'убираю',
+    russianAlt: ['я убираю', 'чищу'],
+    difficulty: Difficulty.MEDIUM,
+    partOfSpeech: PartOfSpeech.VERB,
+  },
+  {
+    georgian: 'ვხსნი',
+    russianPrimary: 'открываю',
+    russianAlt: ['я открываю'],
+    difficulty: Difficulty.MEDIUM,
+    partOfSpeech: PartOfSpeech.VERB,
+  },
+  {
+    georgian: 'ვკეტავ',
+    russianPrimary: 'закрываю',
+    russianAlt: ['я закрываю'],
+    difficulty: Difficulty.MEDIUM,
+    partOfSpeech: PartOfSpeech.VERB,
+  },
+  {
+    georgian: 'ვზივარ',
+    russianPrimary: 'сижу',
+    russianAlt: ['я сижу'],
+    difficulty: Difficulty.MEDIUM,
+    partOfSpeech: PartOfSpeech.VERB,
+  },
+  {
+    georgian: 'ვდგავარ',
+    russianPrimary: 'стою',
+    russianAlt: ['я стою'],
+    difficulty: Difficulty.MEDIUM,
+    partOfSpeech: PartOfSpeech.VERB,
+  },
+  {
+    georgian: 'ვწევარ',
+    russianPrimary: 'лежу',
+    russianAlt: ['я лежу'],
+    difficulty: Difficulty.MEDIUM,
+    partOfSpeech: PartOfSpeech.VERB,
+  },
+  {
+    georgian: 'ვმუშაობ',
+    russianPrimary: 'работаю',
+    russianAlt: ['я работаю'],
+    difficulty: Difficulty.MEDIUM,
+    partOfSpeech: PartOfSpeech.VERB,
+  },
+]
+
 async function main() {
   console.log('Starting seed...')
 
@@ -442,7 +735,84 @@ async function main() {
     data: { wordCount: createdCount },
   })
 
-  console.log(`Seed completed: ${createdCount} words created/updated, ${skippedCount} skipped`)
+  console.log(`Basic collection: ${createdCount} words created/updated, ${skippedCount} skipped`)
+
+  // Create Household collection (Быт)
+  const householdCollection = await prisma.collection.upsert({
+    where: { id: 'default-household-collection' },
+    update: {},
+    create: {
+      id: 'default-household-collection',
+      name: 'Быт',
+      description: 'Слова для повседневной жизни: дом, мебель, бытовые действия',
+      type: CollectionType.DEFAULT,
+      wordCount: HOUSEHOLD_WORDS.length,
+    },
+  })
+
+  console.log(`Created/updated household collection: ${householdCollection.name}`)
+
+  let householdCreatedCount = 0
+  let householdSkippedCount = 0
+
+  for (const wordData of HOUSEHOLD_WORDS) {
+    try {
+      const word = await prisma.word.upsert({
+        where: {
+          georgian_russianPrimary: {
+            georgian: wordData.georgian,
+            russianPrimary: wordData.russianPrimary,
+          },
+        },
+        update: {
+          russianAlt: wordData.russianAlt,
+          difficulty: wordData.difficulty,
+          partOfSpeech: wordData.partOfSpeech,
+          isPublic: true,
+        },
+        create: {
+          georgian: wordData.georgian,
+          russianPrimary: wordData.russianPrimary,
+          russianAlt: wordData.russianAlt,
+          georgianForms: [],
+          difficulty: wordData.difficulty,
+          partOfSpeech: wordData.partOfSpeech,
+          tags: ['быт', 'повседневный'],
+          isPublic: true,
+        },
+      })
+
+      await prisma.collectionWord.upsert({
+        where: {
+          collectionId_wordId: {
+            collectionId: householdCollection.id,
+            wordId: word.id,
+          },
+        },
+        update: {},
+        create: {
+          collectionId: householdCollection.id,
+          wordId: word.id,
+          orderIndex: householdCreatedCount,
+        },
+      })
+
+      householdCreatedCount++
+    } catch (error) {
+      console.log(`Skipped household word: ${wordData.georgian} - ${error}`)
+      householdSkippedCount++
+    }
+  }
+
+  await prisma.collection.update({
+    where: { id: householdCollection.id },
+    data: { wordCount: householdCreatedCount },
+  })
+
+  console.log(
+    `Household collection: ${householdCreatedCount} words created/updated, ${householdSkippedCount} skipped`,
+  )
+  console.log(`Seed completed!`)
 }
 
 main()

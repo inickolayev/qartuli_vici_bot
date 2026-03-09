@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common'
 import { Action, Command, Ctx, Hears, Update } from 'nestjs-telegraf'
-import { Context } from 'telegraf'
+import { Context, Markup } from 'telegraf'
 import { PinoLogger } from 'nestjs-pino'
 import { PrismaService } from '../../../common/prisma/prisma.service'
+import { RedisService } from '../../../common/redis/redis.service'
 import { QuizService } from '../../quiz/quiz.service'
 import { CollectionsService } from '../../collections/collections.service'
+import { WordEditHandler } from './word-edit.handler'
 import { MESSAGES, formatMessage } from '../constants/messages'
 import { createQuizKeyboard } from '../keyboards/quiz.keyboard'
 import { createMainKeyboard } from '../keyboards/main.keyboard'
@@ -23,8 +25,10 @@ export class QuizHandler {
   constructor(
     private readonly logger: PinoLogger,
     private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
     private readonly quizService: QuizService,
     private readonly collectionsService: CollectionsService,
+    private readonly wordEditHandler: WordEditHandler,
   ) {
     this.logger.setContext(QuizHandler.name)
   }
@@ -73,6 +77,7 @@ export class QuizHandler {
           existingSession.currentQuestion,
           existingSession.currentQuestionIndex + 1,
           existingSession.totalQuestions,
+          existingSession.currentQuestionIndex,
         )
         return
       }
@@ -87,8 +92,8 @@ export class QuizHandler {
         parse_mode: 'HTML',
       })
 
-      // Send first question
-      await this.sendQuestion(ctx, quiz.currentQuestion, 1, quiz.totalQuestions)
+      // Send first question (index 0)
+      await this.sendQuestion(ctx, quiz.currentQuestion, 1, quiz.totalQuestions, 0)
 
       // Answer callback query if triggered by button
       if (ctx.callbackQuery) {
@@ -111,15 +116,46 @@ export class QuizHandler {
     }
   }
 
-  @Action(/^quiz:answer:(.+)$/)
+  @Action(/^quiz:answer:(\d+):(.+)$/)
   async onQuizAnswer(@Ctx() ctx: QuizContext) {
     try {
       const from = ctx.from
       if (!from) return
 
-      // Extract answer from callback data
+      // Extract question index and answer from callback data
       const callbackData = 'data' in ctx.callbackQuery! ? ctx.callbackQuery.data : ''
-      const answer = callbackData.replace('quiz:answer:', '')
+      const match = callbackData.match(/^quiz:answer:(\d+):(.+)$/)
+
+      if (!match) {
+        await ctx.answerCbQuery('Неверный формат ответа')
+        return
+      }
+
+      const questionIndex = parseInt(match[1], 10)
+      const answer = match[2]
+
+      // Validate this is the current question
+      const user = await this.prisma.user.findUnique({
+        where: { telegramId: BigInt(from.id) },
+      })
+
+      if (!user) return
+
+      const session = await this.quizService.getCurrentSession(user.id)
+
+      this.logger.info(
+        { questionIndex, currentIndex: session?.currentQuestionIndex, answer },
+        'Quiz answer button clicked',
+      )
+
+      if (!session || session.currentQuestionIndex !== questionIndex) {
+        this.logger.warn(
+          { questionIndex, currentIndex: session?.currentQuestionIndex },
+          'Stale quiz button clicked',
+        )
+        await ctx.answerCbQuery('Этот вопрос уже не актуален')
+        return
+      }
 
       await this.processAnswer(ctx, answer)
       await ctx.answerCbQuery()
@@ -129,9 +165,37 @@ export class QuizHandler {
     }
   }
 
-  @Action('quiz:skip')
+  @Action(/^quiz:skip:(\d+)$/)
   async onSkipQuestion(@Ctx() ctx: QuizContext) {
     try {
+      const from = ctx.from
+      if (!from) return
+
+      // Extract question index
+      const callbackData = 'data' in ctx.callbackQuery! ? ctx.callbackQuery.data : ''
+      const match = callbackData.match(/^quiz:skip:(\d+)$/)
+
+      if (!match) {
+        await ctx.answerCbQuery('Ошибка')
+        return
+      }
+
+      const questionIndex = parseInt(match[1], 10)
+
+      // Validate this is the current question
+      const user = await this.prisma.user.findUnique({
+        where: { telegramId: BigInt(from.id) },
+      })
+
+      if (!user) return
+
+      const session = await this.quizService.getCurrentSession(user.id)
+
+      if (!session || session.currentQuestionIndex !== questionIndex) {
+        await ctx.answerCbQuery('Этот вопрос уже не актуален')
+        return
+      }
+
       await this.processAnswer(ctx, '')
       await ctx.answerCbQuery('Пропущено')
     } catch (error) {
@@ -180,6 +244,10 @@ export class QuizHandler {
     try {
       const from = ctx.from
       if (!from || !('text' in ctx.message!)) return
+
+      // Check if user is editing a word - handle that first
+      const handled = await this.wordEditHandler.handleEditInput(ctx)
+      if (handled) return
 
       const user = await this.prisma.user.findUnique({
         where: { telegramId: BigInt(from.id) },
@@ -232,7 +300,17 @@ export class QuizHandler {
           userAnswer: answer || '(пропущено)',
         })
 
-    await ctx.reply(feedbackMessage, { parse_mode: 'HTML' })
+    if (result.isCorrect) {
+      await ctx.reply(feedbackMessage, { parse_mode: 'HTML' })
+    } else {
+      // Show edit button for incorrect answers
+      await ctx.reply(feedbackMessage, {
+        parse_mode: 'HTML',
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback('✏️ Редактировать слово', `word:edit:${result.wordId}`)],
+        ]),
+      })
+    }
 
     if (result.sessionCompleted) {
       // Quiz completed - show results
@@ -261,6 +339,7 @@ export class QuizHandler {
           result.nextQuestion,
           newSession.currentQuestionIndex + 1,
           newSession.totalQuestions,
+          newSession.currentQuestionIndex,
         )
       }
     }
@@ -271,6 +350,7 @@ export class QuizHandler {
     question: { question: string; type: string; options: string[] },
     currentNum: number,
     total: number,
+    questionIndex: number,
   ) {
     const questionText = formatMessage(MESSAGES.QUIZ_QUESTION, {
       current: currentNum,
@@ -280,7 +360,7 @@ export class QuizHandler {
 
     await ctx.reply(questionText, {
       parse_mode: 'HTML',
-      ...createQuizKeyboard(question.options),
+      ...createQuizKeyboard(question.options, questionIndex),
     })
   }
 }

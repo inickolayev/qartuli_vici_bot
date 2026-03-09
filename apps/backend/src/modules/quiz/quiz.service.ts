@@ -82,11 +82,12 @@ export class QuizService {
         },
       })
 
-      // Create quiz answers
+      // Create quiz answers with explicit orderIndex
       await this.prisma.quizAnswer.createMany({
-        data: exercises.map((exercise) => ({
+        data: exercises.map((exercise, index) => ({
           sessionId: session.id,
           wordId: exercise.wordId,
+          orderIndex: index,
           exerciseType: exercise.type,
           question: exercise.question,
           correctAnswer: exercise.correctAnswer,
@@ -168,10 +169,10 @@ export class QuizService {
       const validationResult = await this.validateAnswer(validationContext)
       const answeredAt = new Date()
 
-      // Find the quiz answer record
+      // Find the quiz answer record by orderIndex
       const quizAnswers = await this.prisma.quizAnswer.findMany({
         where: { sessionId: dto.sessionId },
-        orderBy: { askedAt: 'asc' },
+        orderBy: { orderIndex: 'asc' },
       })
 
       const currentAnswer = quizAnswers[quizState.currentQuestionIndex]
@@ -210,6 +211,7 @@ export class QuizService {
         return {
           isCorrect: validationResult.isCorrect,
           correctAnswer: currentExercise.correctAnswer,
+          wordId: currentExercise.wordId,
           isLastQuestion: true,
           sessionCompleted: true,
         }
@@ -224,6 +226,7 @@ export class QuizService {
         return {
           isCorrect: validationResult.isCorrect,
           correctAnswer: currentExercise.correctAnswer,
+          wordId: currentExercise.wordId,
           isLastQuestion: false,
           nextQuestion: quizState.exercises[nextIndex],
         }

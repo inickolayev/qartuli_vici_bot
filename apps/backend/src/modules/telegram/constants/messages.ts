@@ -57,6 +57,29 @@ export const MESSAGES = {
 Твой ответ: {userAnswer}
 Правильный ответ: <b>{correctAnswer}</b>`,
 
+  // Word editing
+  WORD_EDIT_MENU: `✏️ <b>Редактирование слова</b>
+
+<b>{georgian}</b>
+
+Основной перевод: <b>{russianPrimary}</b>
+Альтернативные: {russianAlt}
+
+Что хочешь сделать?`,
+
+  WORD_EDIT_NEW_PRIMARY: `Введи новый основной перевод для <b>{georgian}</b>:`,
+
+  WORD_EDIT_ADD_ALT: `Введи альтернативный перевод для <b>{georgian}</b>:
+
+Текущие: {russianAlt}`,
+
+  WORD_EDIT_SUCCESS: `✅ Слово обновлено!
+
+<b>{georgian}</b> — {russianPrimary}
+Альтернативные: {russianAlt}`,
+
+  WORD_EDIT_CANCELLED: `❌ Редактирование отменено.`,
+
   QUIZ_COMPLETED: `🏆 Квиз завершён!
 
 Правильных ответов: {correct}/{total}

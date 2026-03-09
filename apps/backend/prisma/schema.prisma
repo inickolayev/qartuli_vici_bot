@@ -260,6 +260,8 @@ model QuizAnswer {
   sessionId       String
   wordId          String
 
+  orderIndex      Int       @default(0)  // Question order within session
+
   exerciseType    ExerciseType
   question        String
   correctAnswer   String
@@ -279,6 +281,7 @@ model QuizAnswer {
   word            Word        @relation(fields: [wordId], references: [id])
 
   @@index([sessionId])
+  @@index([sessionId, orderIndex])
   @@index([wordId])
   @@index([askedAt])
   @@index([isCorrect])
