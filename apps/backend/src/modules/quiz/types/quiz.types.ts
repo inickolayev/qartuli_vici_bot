@@ -63,6 +63,8 @@ export interface WordWithProgress {
     correctCount: number
     incorrectCount: number
     totalAttempts: number
+    consecutiveCorrect: number
+    masteredToday: boolean
     lastSeenAt: Date | null
     lastCorrectAt: Date | null
     lastIncorrectAt: Date | null

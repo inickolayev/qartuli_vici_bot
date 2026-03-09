@@ -68,6 +68,8 @@ export class WordSelectorService {
                     correctCount: progress.correctCount,
                     incorrectCount: progress.incorrectCount,
                     totalAttempts: progress.totalAttempts,
+                    consecutiveCorrect: progress.consecutiveCorrect,
+                    masteredToday: progress.masteredToday,
                     lastSeenAt: progress.lastSeenAt,
                     lastCorrectAt: progress.lastCorrectAt,
                     lastIncorrectAt: progress.lastIncorrectAt,
@@ -110,26 +112,44 @@ export class WordSelectorService {
   /**
    * Calculate priority score for a word
    * Higher score = higher priority
+   * Includes streak bonus for words close to daily mastery
    */
   private calculatePriorityScore(word: WordWithProgress): number {
     if (!word.progress) {
-      return 100
+      return 100 // NEW words without progress
     }
 
-    const { status, rating } = word.progress
+    const { status, rating, consecutiveCorrect, masteredToday } = word.progress
 
+    // Already counted toward today's goal - very low priority
+    if (masteredToday) {
+      return 5
+    }
+
+    // Base score by status
+    let baseScore: number
     switch (status) {
       case LearningStatus.NEW:
-        return 100
+        baseScore = 100
+        break
       case LearningStatus.LEARNING:
-        return Math.max(50 - rating * 5, 10)
+        baseScore = Math.max(50 - rating * 5, 10)
+        break
       case LearningStatus.LEARNED:
-        return 20
+        baseScore = 20
+        break
       case LearningStatus.MASTERED:
-        return 5
+        baseScore = 10
+        break
       default:
-        return 50
+        baseScore = 50
     }
+
+    // Streak bonus: +20 per consecutive correct answer
+    // consecutiveCorrect=2 means just 1 more correct to count!
+    const streakBonus = consecutiveCorrect * 20
+
+    return baseScore + streakBonus
   }
 
   /**
