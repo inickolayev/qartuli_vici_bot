@@ -27,14 +27,15 @@ model User {
 
   // Settings
   quizFrequency   Int       @default(3)
-  quietHoursStart Int?
-  quietHoursEnd   Int?
   isAdmin         Boolean   @default(false)
 
   // Learning settings
   newWordsPerDay     Int           @default(10)  // 0=off, 10, 20, 30
   learningMode       LearningMode  @default(ACTIVE)
-  preferredHours     Int[]         @default([9, 13, 19])  // UTC hours for notifications
+  preferredHours     Int[]         @default([9, 13, 19])  // Hours for notifications (when interval=0)
+  pushIntervalMinutes Int          @default(0)   // 0=use preferredHours, 5/10/60=interval mode
+  activeHoursStart   Int           @default(8)   // Start of active hours (for interval mode)
+  activeHoursEnd     Int           @default(22)  // End of active hours (for interval mode)
   lastLearningPushAt DateTime?
 
   // Learning stats (daily counters)

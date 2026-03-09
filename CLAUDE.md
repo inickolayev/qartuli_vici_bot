@@ -78,6 +78,7 @@ try {
 - Use Prisma transactions for multi-table updates
 - Always add indexes for frequently queried fields
 - Use BigInt for Telegram IDs
+- **NEVER create migrations manually** - always use `npx prisma migrate dev --name <name>` to generate migrations from schema changes
 
 ## Commands
 

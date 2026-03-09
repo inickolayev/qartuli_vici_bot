@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common'
+import { Module, forwardRef } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { TelegrafModule } from 'nestjs-telegraf'
 import { PrismaModule } from '../../common/prisma/prisma.module'
@@ -16,6 +16,7 @@ import { QuizHandler } from './handlers/quiz.handler'
 import { AddWordHandler } from './handlers/add-word.handler'
 import { BulkImportHandler } from './handlers/bulk-import.handler'
 import { SettingsHandler } from './handlers/settings.handler'
+import { StatsHandler } from './handlers/stats.handler'
 import { WordEditHandler } from './handlers/word-edit.handler'
 
 @Module({
@@ -49,7 +50,7 @@ import { WordEditHandler } from './handlers/word-edit.handler'
     CollectionsModule,
     WordsModule,
     LLMModule,
-    LearningModule,
+    forwardRef(() => LearningModule),
   ],
   providers: [
     TelegramService,
@@ -61,6 +62,7 @@ import { WordEditHandler } from './handlers/word-edit.handler'
     AddWordHandler,
     BulkImportHandler,
     SettingsHandler,
+    StatsHandler,
   ],
   exports: [TelegramService],
 })

@@ -99,6 +99,50 @@ export const MESSAGES = {
 
 Ты можешь начать новый квиз в любое время.`,
 
+  // Statistics
+  STATS_FULL: `📊 <b>Моя статистика</b>
+
+🎯 <b>Уровень {level}</b> ({xp} / {xpToNext} XP)
+🔥 Серия: {streak} дн. (рекорд: {longestStreak})
+
+━━━━━━━━━━━━━━━━━━━━
+
+📚 <b>Слова</b> ({totalWords} всего)
+{wordProgressBar}
+⚪ Новые: {newWords}
+🟠 Изучаю: {learningWords}
+🟡 Выучено: {learnedWords}
+🟢 Освоено: {masteredWords}
+
+━━━━━━━━━━━━━━━━━━━━
+
+🧠 <b>Квизы</b>
+Пройдено: {totalQuizzes}
+Ответов: {correctAnswers}/{totalAnswers}
+Точность: {accuracy}%
+{progressBar}
+
+━━━━━━━━━━━━━━━━━━━━
+
+📅 <b>Сегодня</b>
+Квизов: {todayQuizzes}
+Верных ответов: {todayCorrect}
+Заработано: +{todayXp} XP`,
+
+  // Words list
+  WORDS_LIST: `📚 <b>Мои слова</b> ({total})
+Стр. {page}/{totalPages}
+
+{words}
+
+<i>🟢 освоено  🟡 выучено  🟠 изучаю  ⚪ новое
++N→🟡 = N правильных до "выучено"</i>`,
+
+  WORDS_LIST_EMPTY: `📚 <b>Мои слова</b>
+
+У тебя пока нет изученных слов.
+Пройди квиз, чтобы начать учить!`,
+
   // Placeholders (Phase 1)
 
   PLACEHOLDER_STATS: `Статистика скоро будет доступна!
@@ -123,9 +167,9 @@ export const MESSAGES = {
 📚 Новых слов в день: <b>{wordsPerDay}</b>
 📊 Сегодня изучено: {todayProgress}
 🔔 Режим: {mode}
-⏰ Уведомления в: {hours}
+🔄 Напоминания: {interval}
 
-Выбери количество слов:`,
+<i>Слова в день / Частота напоминаний:</i>`,
 
   SETTINGS_UPDATED: `✅ Настройки обновлены!
 
@@ -139,6 +183,17 @@ export const MESSAGES = {
   SETTINGS_RESUMED: `▶️ <b>Обучение возобновлено!</b>
 
 Ты будешь получать <b>{wordsPerDay}</b> новых слов в день.`,
+
+  SETTINGS_HOURS_SELECT: `⏰ <b>Выбери часы отправки</b>
+
+Нажми на час, чтобы включить/выключить.
+✓ = уведомление будет отправлено в этот час.`,
+
+  SETTINGS_HOURS_RANGE: `⏰ <b>Активные часы</b>
+
+Уведомления будут приходить с <b>{start}:00</b> до <b>{end}:00</b>.
+
+Выбери время начала и окончания:`,
 
   // Learning Push
   LEARNING_PUSH: `📚 <b>Пора учить новые слова!</b>

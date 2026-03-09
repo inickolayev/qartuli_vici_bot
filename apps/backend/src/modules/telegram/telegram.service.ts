@@ -2,7 +2,8 @@ import { Injectable, OnModuleInit } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { PinoLogger } from 'nestjs-pino'
 import { InjectBot } from 'nestjs-telegraf'
-import { Telegraf, Context } from 'telegraf'
+import { Telegraf, Context, Markup } from 'telegraf'
+import { MESSAGES, formatMessage } from './constants/messages'
 
 const BOT_COMMANDS = [
   { command: 'start', description: 'Начать / Главное меню' },
@@ -44,5 +45,37 @@ export class TelegramService implements OnModuleInit {
     }
 
     this.logger.info('Telegram bot service initialized')
+  }
+
+  /**
+   * Send learning push notification to user
+   */
+  async sendLearningPush(
+    telegramId: bigint,
+    data: { remaining: number; total: number },
+  ): Promise<boolean> {
+    try {
+      const message = formatMessage(MESSAGES.LEARNING_PUSH, {
+        remaining: data.remaining,
+        total: data.total,
+      })
+
+      await this.bot.telegram.sendMessage(telegramId.toString(), message, {
+        parse_mode: 'HTML',
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback('🎯 Начать квиз', 'quiz:start')],
+          [Markup.button.callback('⏸ Пауза', 'settings:pause')],
+        ]),
+      })
+
+      this.logger.info({ telegramId: telegramId.toString() }, 'Learning push sent')
+      return true
+    } catch (error) {
+      this.logger.error(
+        { error, telegramId: telegramId.toString() },
+        'Failed to send learning push',
+      )
+      return false
+    }
   }
 }

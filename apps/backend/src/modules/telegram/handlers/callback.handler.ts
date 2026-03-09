@@ -47,23 +47,7 @@ export class CallbackHandler {
   }
 
   // quiz:start is handled by QuizHandler
-
-  @Action('stats:show')
-  async onStatsShow(@Ctx() ctx: Context) {
-    try {
-      this.logger.info('User clicked stats:show (placeholder)')
-
-      await ctx.editMessageText(MESSAGES.PLACEHOLDER_STATS, {
-        parse_mode: 'HTML',
-        ...createBackToMenuKeyboard(),
-      })
-
-      await ctx.answerCbQuery()
-    } catch (error) {
-      this.logger.error({ error }, 'Failed to handle stats:show')
-      await ctx.answerCbQuery(MESSAGES.ERROR_GENERIC)
-    }
-  }
+  // stats:show is handled by StatsHandler
 
   @Action('streak:show')
   async onStreakShow(@Ctx() ctx: Context) {

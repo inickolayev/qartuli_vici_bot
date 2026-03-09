@@ -1,12 +1,13 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, Inject, forwardRef } from '@nestjs/common'
 import { Cron, CronExpression } from '@nestjs/schedule'
 import { PinoLogger } from 'nestjs-pino'
 import { LearningMode, User } from '@prisma/client'
 import { PrismaService } from '../../common/prisma/prisma.service'
 import { RedisService } from '../../common/redis/redis.service'
+import { TelegramService } from '../telegram/telegram.service'
 
-const MAX_PUSH_PER_DAY = 3
-const BATCH_SIZE = 5 // Words per learning push
+const MAX_PUSH_PER_DAY = 50 // Increased for frequent intervals
+const STALE_SESSION_HOURS = 1 // Auto-abandon sessions older than this
 
 interface LearningPushPayload {
   userId: string
@@ -25,41 +26,82 @@ export class LearningSchedulerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    @Inject(forwardRef(() => TelegramService))
+    private readonly telegramService: TelegramService,
     private readonly logger: PinoLogger,
   ) {
     this.logger.setContext(LearningSchedulerService.name)
   }
 
   /**
-   * Check every hour for users who need learning push
+   * Check every 5 minutes for users who need learning push
    */
-  @Cron(CronExpression.EVERY_HOUR)
+  @Cron('*/5 * * * *') // Every 5 minutes
   async checkAndPushLearning(): Promise<void> {
-    const currentHour = new Date().getUTCHours()
+    const now = new Date()
+    const currentHour = now.getUTCHours()
 
-    this.logger.info({ currentHour }, 'Checking for users to push learning')
+    this.logger.debug({ currentHour }, 'Checking for users to push learning')
 
     try {
-      // Find users who:
-      // 1. Have learningMode = ACTIVE
-      // 2. Have newWordsPerDay > 0
-      // 3. Have current hour in preferredHours
-      // 4. Haven't reached daily goal yet
+      // Auto-abandon stale quiz sessions (older than 1 hour)
+      await this.abandonStaleSessions()
+
+      // Find all active users
       const users = await this.prisma.user.findMany({
         where: {
           learningMode: LearningMode.ACTIVE,
           newWordsPerDay: { gt: 0 },
-          preferredHours: { has: currentHour },
         },
       })
 
-      // Filter users who still need words
-      const eligibleUsers = users.filter((user) => user.todayNewWordsCount < user.newWordsPerDay)
+      // Filter users based on their settings
+      const eligibleUsers = users.filter((user) => {
+        // Check if daily goal not reached
+        if (user.todayNewWordsCount >= user.newWordsPerDay) {
+          return false
+        }
 
-      this.logger.info(
-        { totalUsers: users.length, eligibleUsers: eligibleUsers.length, currentHour },
-        'Found users for learning push',
-      )
+        if (user.pushIntervalMinutes > 0) {
+          // Interval mode: check active hours and interval
+          if (!this.isWithinActiveHours(currentHour, user.activeHoursStart, user.activeHoursEnd)) {
+            return false
+          }
+
+          // Check if enough time has passed since last push
+          if (user.lastLearningPushAt) {
+            const timeSinceLastPush = now.getTime() - user.lastLearningPushAt.getTime()
+            const intervalMs = user.pushIntervalMinutes * 60 * 1000
+            if (timeSinceLastPush < intervalMs) {
+              return false
+            }
+          }
+          return true
+        } else {
+          // Preferred hours mode: check if current hour matches and hasn't been pushed this hour
+          if (!user.preferredHours.includes(currentHour)) {
+            return false
+          }
+
+          // Check if already pushed this hour
+          if (user.lastLearningPushAt) {
+            const lastPushHour = user.lastLearningPushAt.getUTCHours()
+            const lastPushDate = user.lastLearningPushAt.toDateString()
+            const todayDate = now.toDateString()
+            if (lastPushHour === currentHour && lastPushDate === todayDate) {
+              return false
+            }
+          }
+          return true
+        }
+      })
+
+      if (eligibleUsers.length > 0) {
+        this.logger.info(
+          { totalUsers: users.length, eligibleUsers: eligibleUsers.length, currentHour },
+          'Found users for learning push',
+        )
+      }
 
       // Process each user
       for (const user of eligibleUsers) {
@@ -67,6 +109,19 @@ export class LearningSchedulerService {
       }
     } catch (error) {
       this.logger.error({ error }, 'Failed to check learning push')
+    }
+  }
+
+  /**
+   * Check if current hour is within active hours range
+   */
+  private isWithinActiveHours(currentHour: number, start: number, end: number): boolean {
+    if (start <= end) {
+      // Normal range: e.g., 8-22
+      return currentHour >= start && currentHour < end
+    } else {
+      // Overnight range: e.g., 22-8 (not typical but handle it)
+      return currentHour >= start || currentHour < end
     }
   }
 
@@ -95,6 +150,31 @@ export class LearningSchedulerService {
   }
 
   /**
+   * Auto-abandon quiz sessions that have been inactive for too long
+   */
+  private async abandonStaleSessions(): Promise<void> {
+    const staleThreshold = new Date(Date.now() - STALE_SESSION_HOURS * 60 * 60 * 1000)
+
+    try {
+      const result = await this.prisma.quizSession.updateMany({
+        where: {
+          status: 'IN_PROGRESS',
+          startedAt: { lt: staleThreshold },
+        },
+        data: {
+          status: 'ABANDONED',
+        },
+      })
+
+      if (result.count > 0) {
+        this.logger.info({ count: result.count }, 'Auto-abandoned stale quiz sessions')
+      }
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to abandon stale sessions')
+    }
+  }
+
+  /**
    * Push learning session to a user
    */
   private async pushLearningSession(user: User): Promise<void> {
@@ -106,46 +186,47 @@ export class LearningSchedulerService {
         return
       }
 
-      // Calculate how many words remaining
-      const remaining = user.newWordsPerDay - user.todayNewWordsCount
-      const batchSize = Math.min(remaining, BATCH_SIZE)
+      // Check if user has active quiz session - don't disturb
+      const activeSession = await this.prisma.quizSession.findFirst({
+        where: {
+          userId: user.id,
+          status: 'IN_PROGRESS',
+        },
+      })
 
-      // Select NEW words from user's collections
-      const newWords = await this.selectNewWords(user.id, batchSize)
-
-      if (newWords.length === 0) {
-        // No new words available - user has started learning all words
-        this.logger.debug({ userId: user.id }, 'No new words available for user')
+      if (activeSession) {
+        this.logger.debug({ userId: user.id }, 'User has active quiz session, skipping push')
         return
       }
 
-      // Create learning push payload
-      const payload: LearningPushPayload = {
-        userId: user.id,
-        telegramId: user.telegramId,
-        wordsCount: newWords.length,
-        remainingToday: remaining - newWords.length,
-        totalToday: user.newWordsPerDay,
-      }
+      // Calculate how many words remaining for today's goal
+      const remaining = user.newWordsPerDay - user.todayNewWordsCount
 
-      // Queue the push notification (to be sent by telegram service)
-      await this.queueLearningPush(payload)
+      // Send push notification
+      const sent = await this.telegramService.sendLearningPush(user.telegramId, {
+        remaining,
+        total: user.newWordsPerDay,
+      })
+
+      if (!sent) {
+        this.logger.warn({ userId: user.id }, 'Failed to send learning push')
+        return
+      }
 
       // Increment daily push counter
       await this.incrementPushCount(user.id)
 
-      // Update user's counter and last push time
+      // Update last push time
       await this.prisma.user.update({
         where: { id: user.id },
         data: {
-          todayNewWordsCount: { increment: newWords.length },
           lastLearningPushAt: new Date(),
         },
       })
 
       this.logger.info(
-        { userId: user.id, wordsCount: newWords.length, remaining: payload.remainingToday },
-        'Learning push queued',
+        { userId: user.id, remaining, total: user.newWordsPerDay },
+        'Learning push sent',
       )
     } catch (error) {
       this.logger.error({ error, userId: user.id }, 'Failed to push learning session')
