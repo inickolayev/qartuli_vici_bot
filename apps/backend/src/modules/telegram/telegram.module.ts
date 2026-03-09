@@ -2,10 +2,20 @@ import { Module } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { TelegrafModule } from 'nestjs-telegraf'
 import { PrismaModule } from '../../common/prisma/prisma.module'
+import { RedisModule } from '../../common/redis/redis.module'
+import { QuizModule } from '../quiz/quiz.module'
+import { CollectionsModule } from '../collections/collections.module'
+import { WordsModule } from '../words/words.module'
+import { LLMModule } from '../llm/llm.module'
+import { LearningModule } from '../learning/learning.module'
 import { TelegramService } from './telegram.service'
 import { StartHandler } from './handlers/start.handler'
 import { CommandHandler } from './handlers/command.handler'
 import { CallbackHandler } from './handlers/callback.handler'
+import { QuizHandler } from './handlers/quiz.handler'
+import { AddWordHandler } from './handlers/add-word.handler'
+import { BulkImportHandler } from './handlers/bulk-import.handler'
+import { SettingsHandler } from './handlers/settings.handler'
 
 @Module({
   imports: [
@@ -33,8 +43,23 @@ import { CallbackHandler } from './handlers/callback.handler'
       inject: [ConfigService],
     }),
     PrismaModule,
+    RedisModule,
+    QuizModule,
+    CollectionsModule,
+    WordsModule,
+    LLMModule,
+    LearningModule,
   ],
-  providers: [TelegramService, StartHandler, CommandHandler, CallbackHandler],
+  providers: [
+    TelegramService,
+    StartHandler,
+    CommandHandler,
+    CallbackHandler,
+    QuizHandler,
+    AddWordHandler,
+    BulkImportHandler,
+    SettingsHandler,
+  ],
   exports: [TelegramService],
 })
 export class TelegramModule {}

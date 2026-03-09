@@ -7,6 +7,7 @@ import { WordSelectorService } from './services/word-selector.service'
 import { ProgressService } from './services/progress.service'
 import { ExerciseGenerator } from './generators/exercise.generator'
 import { ExactMatchValidator } from './validators/exact-match.validator'
+import { AllowedFormsValidator } from './validators/allowed-forms.validator'
 import { NormalizedMatchValidator } from './validators/normalized-match.validator'
 import { AnswerValidator } from './validators/validator.interface'
 import { StartQuizDto } from './dto/start-quiz.dto'
@@ -25,13 +26,19 @@ export class QuizService {
     private readonly progressService: ProgressService,
     private readonly exerciseGenerator: ExerciseGenerator,
     private readonly exactMatchValidator: ExactMatchValidator,
+    private readonly allowedFormsValidator: AllowedFormsValidator,
     private readonly normalizedMatchValidator: NormalizedMatchValidator,
     private readonly logger: PinoLogger,
   ) {
     this.logger.setContext(QuizService.name)
 
     // Validator chain - order matters (cheap checks first)
-    this.validators = [this.exactMatchValidator, this.normalizedMatchValidator]
+    // ExactMatch → AllowedForms → NormalizedMatch
+    this.validators = [
+      this.exactMatchValidator,
+      this.allowedFormsValidator,
+      this.normalizedMatchValidator,
+    ]
   }
 
   /**

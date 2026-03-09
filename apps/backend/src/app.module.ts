@@ -11,6 +11,9 @@ import { TelegramModule } from './modules/telegram/telegram.module'
 import { WordsModule } from './modules/words/words.module'
 import { CollectionsModule } from './modules/collections/collections.module'
 import { QuizModule } from './modules/quiz/quiz.module'
+import { LLMModule } from './modules/llm/llm.module'
+import { LearningModule } from './modules/learning/learning.module'
+import { ChatBotModule } from './modules/chat-bot/chat-bot.module'
 
 import { appConfig, validateConfig } from './config/app.config'
 
@@ -57,6 +60,11 @@ import { appConfig, validateConfig } from './config/app.config'
     WordsModule,
     CollectionsModule,
     QuizModule,
+    LLMModule,
+    LearningModule,
+
+    // Development modules (chat testing interface)
+    ...(process.env.NODE_ENV !== 'production' ? [ChatBotModule] : []),
   ],
 })
 export class AppModule {}

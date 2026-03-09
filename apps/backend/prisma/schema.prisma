@@ -31,6 +31,16 @@ model User {
   quietHoursEnd   Int?
   isAdmin         Boolean   @default(false)
 
+  // Learning settings
+  newWordsPerDay     Int           @default(10)  // 0=off, 10, 20, 30
+  learningMode       LearningMode  @default(ACTIVE)
+  preferredHours     Int[]         @default([9, 13, 19])  // UTC hours for notifications
+  lastLearningPushAt DateTime?
+
+  // Learning stats (daily counters)
+  todayNewWordsCount Int          @default(0)
+  todayResetAt       DateTime?
+
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -45,6 +55,12 @@ model User {
 
   @@index([telegramId])
   @@index([lastActivityAt])
+  @@index([learningMode, newWordsPerDay])
+}
+
+enum LearningMode {
+  ACTIVE   // Receives learning notifications
+  PAUSED   // No notifications, but progress preserved
 }
 
 // ==================== WORDS ====================

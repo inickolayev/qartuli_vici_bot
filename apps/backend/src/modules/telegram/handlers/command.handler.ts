@@ -2,8 +2,11 @@ import { Injectable } from '@nestjs/common'
 import { Command, Update, Ctx } from 'nestjs-telegraf'
 import { Context } from 'telegraf'
 import { PinoLogger } from 'nestjs-pino'
-import { MESSAGES } from '../constants/messages'
+import { LearningMode } from '@prisma/client'
+import { PrismaService } from '../../../common/prisma/prisma.service'
+import { MESSAGES, formatMessage } from '../constants/messages'
 import { createBackToMenuKeyboard, createMainKeyboard } from '../keyboards/main.keyboard'
+import { createSettingsKeyboard } from '../keyboards/settings.keyboard'
 
 /**
  * Handler for basic bot commands
@@ -11,7 +14,10 @@ import { createBackToMenuKeyboard, createMainKeyboard } from '../keyboards/main.
 @Update()
 @Injectable()
 export class CommandHandler {
-  constructor(private readonly logger: PinoLogger) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly logger: PinoLogger,
+  ) {
     this.logger.setContext(CommandHandler.name)
   }
 
@@ -24,20 +30,6 @@ export class CommandHandler {
       })
     } catch (error) {
       this.logger.error({ error }, 'Failed to handle /help command')
-      await ctx.reply(MESSAGES.ERROR_GENERIC, { parse_mode: 'HTML' })
-    }
-  }
-
-  @Command('quiz')
-  async onQuiz(@Ctx() ctx: Context) {
-    try {
-      this.logger.info('User requested quiz (placeholder)')
-      await ctx.reply(MESSAGES.PLACEHOLDER_QUIZ, {
-        parse_mode: 'HTML',
-        ...createBackToMenuKeyboard(),
-      })
-    } catch (error) {
-      this.logger.error({ error }, 'Failed to handle /quiz command')
       await ctx.reply(MESSAGES.ERROR_GENERIC, { parse_mode: 'HTML' })
     }
   }
@@ -101,10 +93,34 @@ export class CommandHandler {
   @Command('settings')
   async onSettings(@Ctx() ctx: Context) {
     try {
-      this.logger.info('User requested settings (placeholder)')
-      await ctx.reply(MESSAGES.PLACEHOLDER_SETTINGS, {
+      const from = ctx.from
+      if (!from) {
+        await ctx.reply(MESSAGES.ERROR_NOT_REGISTERED, { parse_mode: 'HTML' })
+        return
+      }
+
+      const user = await this.prisma.user.findUnique({
+        where: { telegramId: BigInt(from.id) },
+      })
+
+      if (!user) {
+        await ctx.reply(MESSAGES.ERROR_NOT_REGISTERED, { parse_mode: 'HTML' })
+        return
+      }
+
+      const modeText = user.learningMode === LearningMode.ACTIVE ? 'Активен' : 'Пауза'
+      const hoursText = user.preferredHours.map((h) => `${h}:00`).join(', ')
+
+      const message = formatMessage(MESSAGES.SETTINGS_MENU, {
+        wordsPerDay: user.newWordsPerDay,
+        todayProgress: `${user.todayNewWordsCount}/${user.newWordsPerDay}`,
+        mode: modeText,
+        hours: hoursText,
+      })
+
+      await ctx.reply(message, {
         parse_mode: 'HTML',
-        ...createBackToMenuKeyboard(),
+        ...createSettingsKeyboard(user),
       })
     } catch (error) {
       this.logger.error({ error }, 'Failed to handle /settings command')

@@ -46,22 +46,7 @@ export class CallbackHandler {
     }
   }
 
-  @Action('quiz:start')
-  async onQuizStart(@Ctx() ctx: Context) {
-    try {
-      this.logger.info('User clicked quiz:start (placeholder)')
-
-      await ctx.editMessageText(MESSAGES.PLACEHOLDER_QUIZ, {
-        parse_mode: 'HTML',
-        ...createBackToMenuKeyboard(),
-      })
-
-      await ctx.answerCbQuery()
-    } catch (error) {
-      this.logger.error({ error }, 'Failed to handle quiz:start')
-      await ctx.answerCbQuery(MESSAGES.ERROR_GENERIC)
-    }
-  }
+  // quiz:start is handled by QuizHandler
 
   @Action('stats:show')
   async onStatsShow(@Ctx() ctx: Context) {
@@ -131,20 +116,5 @@ export class CallbackHandler {
     }
   }
 
-  @Action('settings:open')
-  async onSettingsOpen(@Ctx() ctx: Context) {
-    try {
-      this.logger.info('User clicked settings:open (placeholder)')
-
-      await ctx.editMessageText(MESSAGES.PLACEHOLDER_SETTINGS, {
-        parse_mode: 'HTML',
-        ...createBackToMenuKeyboard(),
-      })
-
-      await ctx.answerCbQuery()
-    } catch (error) {
-      this.logger.error({ error }, 'Failed to handle settings:open')
-      await ctx.answerCbQuery(MESSAGES.ERROR_GENERIC)
-    }
-  }
+  // settings:open is handled by SettingsHandler
 }

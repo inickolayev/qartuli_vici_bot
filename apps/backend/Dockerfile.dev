@@ -17,8 +17,15 @@ RUN npx prisma generate
 # Copy source code (will be overwritten by volume mount)
 COPY . .
 
+# Copy and setup entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Expose port
 EXPOSE 3000
+
+# Entrypoint runs migrations before starting the app
+ENTRYPOINT ["docker-entrypoint.sh"]
 
 # Start in watch mode
 CMD ["npm", "run", "dev"]

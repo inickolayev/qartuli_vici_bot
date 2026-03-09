@@ -6,6 +6,7 @@ import { WordSelectorService } from './services/word-selector.service'
 import { ProgressService } from './services/progress.service'
 import { ExerciseGenerator } from './generators/exercise.generator'
 import { ExactMatchValidator } from './validators/exact-match.validator'
+import { AllowedFormsValidator } from './validators/allowed-forms.validator'
 import { NormalizedMatchValidator } from './validators/normalized-match.validator'
 
 @Module({
@@ -16,6 +17,7 @@ import { NormalizedMatchValidator } from './validators/normalized-match.validato
     ProgressService,
     ExerciseGenerator,
     ExactMatchValidator,
+    AllowedFormsValidator,
     NormalizedMatchValidator,
   ],
   exports: [QuizService],

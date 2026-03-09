@@ -3,10 +3,12 @@ import { ValidationPipe } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger'
 import { Logger } from 'nestjs-pino'
+import { NestExpressApplication } from '@nestjs/platform-express'
+import { join } from 'path'
 import { AppModule } from './app.module'
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true })
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true })
 
   // Use Pino logger
   app.useLogger(app.get(Logger))
@@ -29,8 +31,18 @@ async function bootstrap() {
     credentials: true,
   })
 
-  // Swagger documentation
+  // Get config
   const config = app.get(ConfigService)
+
+  // Serve static files for chat testing interface (development only)
+  if (config.get('NODE_ENV') !== 'production') {
+    // Use process.cwd() for reliable path resolution in both dev and compiled modes
+    app.useStaticAssets(join(process.cwd(), 'public'), {
+      prefix: '/chat/',
+    })
+  }
+
+  // Swagger documentation
   if (config.get('NODE_ENV') !== 'production') {
     const swaggerConfig = new DocumentBuilder()
       .setTitle('Qartuli Vici Bot API')
@@ -50,6 +62,9 @@ async function bootstrap() {
   const logger = app.get(Logger)
   logger.log(`Application is running on: http://localhost:${port}`)
   logger.log(`Swagger docs: http://localhost:${port}/api/docs`)
+  if (config.get('NODE_ENV') !== 'production') {
+    logger.log(`Chat testing UI: http://localhost:${port}/chat/chat.html`)
+  }
 }
 
 bootstrap()

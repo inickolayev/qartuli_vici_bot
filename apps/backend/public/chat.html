@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Qartuli Vici Bot - Test Chat</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      background: #16213e;
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #0f3460;
+    }
+
+    .header h1 {
+      font-size: 1.2rem;
+      color: #e94560;
+    }
+
+    .user-selector {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .user-selector input {
+      background: #0f3460;
+      border: 1px solid #e94560;
+      color: #eee;
+      padding: 0.5rem;
+      border-radius: 4px;
+      width: 120px;
+    }
+
+    .user-selector button {
+      background: #e94560;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      max-width: 600px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 1rem;
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      padding-bottom: 1rem;
+    }
+
+    .message {
+      max-width: 85%;
+      padding: 0.75rem 1rem;
+      border-radius: 12px;
+      white-space: pre-wrap;
+      line-height: 1.4;
+    }
+
+    .message.user {
+      background: #e94560;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+    }
+
+    .message.bot {
+      background: #16213e;
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+    }
+
+    .message b {
+      font-weight: 600;
+    }
+
+    .buttons-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .callback-button {
+      background: #0f3460;
+      color: #eee;
+      border: 1px solid #e94560;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .callback-button:hover {
+      background: #e94560;
+    }
+
+    .input-area {
+      display: flex;
+      gap: 0.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid #0f3460;
+    }
+
+    .input-area input {
+      flex: 1;
+      background: #16213e;
+      border: 1px solid #0f3460;
+      color: #eee;
+      padding: 1rem;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+
+    .input-area input:focus {
+      outline: none;
+      border-color: #e94560;
+    }
+
+    .input-area button {
+      background: #e94560;
+      color: white;
+      border: none;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    .input-area button:hover {
+      background: #d63850;
+    }
+
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    .status {
+      font-size: 0.8rem;
+      color: #888;
+      padding: 0.5rem;
+      text-align: center;
+    }
+
+    .quick-commands {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.5rem 0;
+      flex-wrap: wrap;
+    }
+
+    .quick-command {
+      background: transparent;
+      color: #e94560;
+      border: 1px solid #e94560;
+      padding: 0.25rem 0.75rem;
+      border-radius: 16px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .quick-command:hover {
+      background: #e94560;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Qartuli Vici Bot - Test Chat</h1>
+    <div class="user-selector">
+      <span>User ID:</span>
+      <input type="text" id="userId" value="test1" placeholder="User ID">
+      <button onclick="clearChat()">Clear</button>
+    </div>
+  </div>
+
+  <div class="chat-container">
+    <div class="quick-commands">
+      <button class="quick-command" onclick="sendCommand('/start')">/start</button>
+      <button class="quick-command" onclick="sendCommand('/quiz')">/quiz</button>
+      <button class="quick-command" onclick="sendCommand('/help')">/help</button>
+      <button class="quick-command" onclick="sendCommand('/stats')">/stats</button>
+    </div>
+
+    <div class="messages" id="messages"></div>
+
+    <div class="status" id="status">Ready</div>
+
+    <div class="input-area">
+      <input
+        type="text"
+        id="messageInput"
+        placeholder="Type a message or command..."
+        onkeypress="if(event.key === 'Enter') sendMessage()"
+      >
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '/api/chat';
+    let isLoading = false;
+
+    function getUserId() {
+      return document.getElementById('userId').value || 'test1';
+    }
+
+    function setLoading(loading) {
+      isLoading = loading;
+      document.getElementById('status').textContent = loading ? 'Sending...' : 'Ready';
+      document.querySelector('.input-area').classList.toggle('loading', loading);
+    }
+
+    function addMessage(text, isUser, buttons = null) {
+      const messagesDiv = document.getElementById('messages');
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+
+      // Parse HTML tags for bot messages
+      if (!isUser) {
+        messageDiv.innerHTML = text.replace(/\n/g, '<br>');
+      } else {
+        messageDiv.textContent = text;
+      }
+
+      messagesDiv.appendChild(messageDiv);
+
+      // Add buttons if present
+      if (buttons && buttons.length > 0) {
+        const buttonsContainer = document.createElement('div');
+        buttonsContainer.className = 'buttons-container';
+
+        buttons.forEach(row => {
+          const rowDiv = document.createElement('div');
+          rowDiv.className = 'button-row';
+
+          row.forEach(btn => {
+            const button = document.createElement('button');
+            button.className = 'callback-button';
+            button.textContent = btn.text;
+            button.onclick = () => sendCallback(btn.callbackData);
+            rowDiv.appendChild(button);
+          });
+
+          buttonsContainer.appendChild(rowDiv);
+        });
+
+        messagesDiv.appendChild(buttonsContainer);
+      }
+
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
+
+      if (!text || isLoading) return;
+
+      addMessage(text, true);
+      input.value = '';
+      setLoading(true);
+
+      try {
+        const response = await fetch(`${API_BASE}/message`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: getUserId(), text })
+        });
+
+        const data = await response.json();
+        addMessage(data.text, false, data.buttons);
+      } catch (error) {
+        addMessage('Error: Failed to send message', false);
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function sendCallback(callbackData) {
+      if (isLoading) return;
+
+      addMessage(`[${callbackData}]`, true);
+      setLoading(true);
+
+      try {
+        const response = await fetch(`${API_BASE}/callback`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: getUserId(), data: callbackData })
+        });
+
+        const data = await response.json();
+        addMessage(data.text, false, data.buttons);
+      } catch (error) {
+        addMessage('Error: Failed to send callback', false);
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    function sendCommand(cmd) {
+      document.getElementById('messageInput').value = cmd;
+      sendMessage();
+    }
+
+    async function clearChat() {
+      const messagesDiv = document.getElementById('messages');
+      messagesDiv.innerHTML = '';
+
+      try {
+        await fetch(`${API_BASE}/clear`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: getUserId() })
+        });
+      } catch (error) {
+        console.error('Failed to clear history:', error);
+      }
+    }
+
+    // Focus input on load
+    document.getElementById('messageInput').focus();
+  </script>
+</body>
+</html>
