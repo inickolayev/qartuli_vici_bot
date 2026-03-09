@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "build": "nest build",
-    "dev": "nest start --watch",
-    "start": "nest start",
-    "start:prod": "node dist/main",
+    "dev": "prisma migrate deploy && prisma generate && nest start --watch",
+    "start": "prisma migrate deploy && nest start",
+    "start:prod": "prisma migrate deploy && node dist/main",
     "start:debug": "nest start --debug --watch",
     "lint": "eslint \"{src,test}/**/*.ts\"",
     "lint:fix": "eslint \"{src,test}/**/*.ts\" --fix",
