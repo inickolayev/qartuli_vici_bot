@@ -9,10 +9,11 @@ import { ExerciseGenerator } from './generators/exercise.generator'
 import { ExactMatchValidator } from './validators/exact-match.validator'
 import { AllowedFormsValidator } from './validators/allowed-forms.validator'
 import { NormalizedMatchValidator } from './validators/normalized-match.validator'
+import { MultipleChoiceValidator } from './validators/multiple-choice.validator'
 import { AnswerValidator } from './validators/validator.interface'
 import { StartQuizDto } from './dto/start-quiz.dto'
 import { SubmitAnswerDto } from './dto/submit-answer.dto'
-import { QuizState, ValidationContext } from './types/quiz.types'
+import { QuizState, ValidationContext, ExerciseGenerationContext } from './types/quiz.types'
 
 @Injectable()
 export class QuizService {
@@ -28,13 +29,15 @@ export class QuizService {
     private readonly exactMatchValidator: ExactMatchValidator,
     private readonly allowedFormsValidator: AllowedFormsValidator,
     private readonly normalizedMatchValidator: NormalizedMatchValidator,
+    private readonly multipleChoiceValidator: MultipleChoiceValidator,
     private readonly logger: PinoLogger,
   ) {
     this.logger.setContext(QuizService.name)
 
     // Validator chain - order matters (cheap checks first)
-    // ExactMatch → AllowedForms → NormalizedMatch
+    // MultipleChoice (only for MC) → ExactMatch → AllowedForms → NormalizedMatch
     this.validators = [
+      this.multipleChoiceValidator,
       this.exactMatchValidator,
       this.allowedFormsValidator,
       this.normalizedMatchValidator,
@@ -67,8 +70,15 @@ export class QuizService {
         )
       }
 
-      // Generate exercises
-      const exercises = words.map((word) => this.exerciseGenerator.generate(word))
+      // Generate exercises with context for multiple choice distractors
+      const exercises: ReturnType<typeof this.exerciseGenerator.generate>[] = []
+      for (const word of words) {
+        const context: ExerciseGenerationContext = {
+          allWords: words,
+          recentTypes: exercises.map((e) => e.type),
+        }
+        exercises.push(this.exerciseGenerator.generate(word, context))
+      }
 
       // Create quiz session
       const session = await this.prisma.quizSession.create({

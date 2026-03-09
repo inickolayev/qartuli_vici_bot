@@ -5,12 +5,14 @@ import { Markup } from 'telegraf'
  */
 export function createQuizKeyboard(options: string[] = [], questionIndex: number = 0) {
   const buttons = []
+  const labels = ['А', 'Б', 'В', 'Г']
 
-  // If options provided (multiple choice), show them
+  // If options provided (multiple choice), show them with A/B/C/D labels
   // Include questionIndex in callback to validate it's the current question
   if (options.length > 0) {
-    for (const option of options) {
-      buttons.push([Markup.button.callback(option, `quiz:answer:${questionIndex}:${option}`)])
+    for (let i = 0; i < options.length; i++) {
+      const label = `${labels[i]}. ${options[i]}`
+      buttons.push([Markup.button.callback(label, `quiz:answer:${questionIndex}:${options[i]}`)])
     }
   }
 

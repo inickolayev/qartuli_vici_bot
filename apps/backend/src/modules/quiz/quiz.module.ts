@@ -4,10 +4,12 @@ import { RedisModule } from '../../common/redis/redis.module'
 import { QuizService } from './quiz.service'
 import { WordSelectorService } from './services/word-selector.service'
 import { ProgressService } from './services/progress.service'
+import { DistractorService } from './services/distractor.service'
 import { ExerciseGenerator } from './generators/exercise.generator'
 import { ExactMatchValidator } from './validators/exact-match.validator'
 import { AllowedFormsValidator } from './validators/allowed-forms.validator'
 import { NormalizedMatchValidator } from './validators/normalized-match.validator'
+import { MultipleChoiceValidator } from './validators/multiple-choice.validator'
 
 @Module({
   imports: [PrismaModule, RedisModule],
@@ -15,10 +17,12 @@ import { NormalizedMatchValidator } from './validators/normalized-match.validato
     QuizService,
     WordSelectorService,
     ProgressService,
+    DistractorService,
     ExerciseGenerator,
     ExactMatchValidator,
     AllowedFormsValidator,
     NormalizedMatchValidator,
+    MultipleChoiceValidator,
   ],
   exports: [QuizService],
 })
