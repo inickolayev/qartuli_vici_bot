@@ -39,9 +39,8 @@ export class LearningSchedulerService {
   @Cron('*/5 * * * *') // Every 5 minutes
   async checkAndPushLearning(): Promise<void> {
     const now = new Date()
-    const currentHour = now.getUTCHours()
 
-    this.logger.debug({ currentHour }, 'Checking for users to push learning')
+    this.logger.debug('Checking for users to push learning')
 
     try {
       // Auto-abandon stale quiz sessions (older than 1 hour)
@@ -62,9 +61,14 @@ export class LearningSchedulerService {
           return false
         }
 
+        // Get user's local hour based on their timezone
+        const userLocalHour = this.getUserLocalHour(now, user.timezone)
+
         if (user.pushIntervalMinutes > 0) {
           // Interval mode: check active hours and interval
-          if (!this.isWithinActiveHours(currentHour, user.activeHoursStart, user.activeHoursEnd)) {
+          if (
+            !this.isWithinActiveHours(userLocalHour, user.activeHoursStart, user.activeHoursEnd)
+          ) {
             return false
           }
 
@@ -78,17 +82,20 @@ export class LearningSchedulerService {
           }
           return true
         } else {
+          // Get user's local hour based on their timezone
+          const userLocalHour = this.getUserLocalHour(now, user.timezone)
+
           // Preferred hours mode: check if current hour matches and hasn't been pushed this hour
-          if (!user.preferredHours.includes(currentHour)) {
+          if (!user.preferredHours.includes(userLocalHour)) {
             return false
           }
 
           // Check if already pushed this hour
           if (user.lastLearningPushAt) {
-            const lastPushHour = user.lastLearningPushAt.getUTCHours()
+            const lastPushLocalHour = this.getUserLocalHour(user.lastLearningPushAt, user.timezone)
             const lastPushDate = user.lastLearningPushAt.toDateString()
             const todayDate = now.toDateString()
-            if (lastPushHour === currentHour && lastPushDate === todayDate) {
+            if (lastPushLocalHour === userLocalHour && lastPushDate === todayDate) {
               return false
             }
           }
@@ -98,7 +105,11 @@ export class LearningSchedulerService {
 
       if (eligibleUsers.length > 0) {
         this.logger.info(
-          { totalUsers: users.length, eligibleUsers: eligibleUsers.length, currentHour },
+          {
+            totalUsers: users.length,
+            eligibleUsers: eligibleUsers.length,
+            utcHour: now.getUTCHours(),
+          },
           'Found users for learning push',
         )
       }
@@ -122,6 +133,25 @@ export class LearningSchedulerService {
     } else {
       // Overnight range: e.g., 22-8 (not typical but handle it)
       return currentHour >= start || currentHour < end
+    }
+  }
+
+  /**
+   * Get user's local hour based on their timezone
+   */
+  private getUserLocalHour(date: Date, timezone: string | null): number {
+    const tz = timezone || 'Europe/Moscow'
+    try {
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz,
+        hour: 'numeric',
+        hour12: false,
+      })
+      const hourStr = formatter.format(date)
+      return parseInt(hourStr, 10)
+    } catch {
+      // Fallback to Moscow timezone offset (+3) if invalid timezone
+      return (date.getUTCHours() + 3) % 24
     }
   }
 

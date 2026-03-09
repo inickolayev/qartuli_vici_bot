@@ -1,6 +1,24 @@
 import { Markup } from 'telegraf'
 import { LearningMode } from '@prisma/client'
 
+// Common timezones for users
+const TIMEZONES = [
+  { id: 'Europe/Moscow', label: 'Москва (UTC+3)', short: 'MSK' },
+  { id: 'Europe/Kaliningrad', label: 'Калининград (UTC+2)', short: 'UTC+2' },
+  { id: 'Europe/Samara', label: 'Самара (UTC+4)', short: 'UTC+4' },
+  { id: 'Asia/Yekaterinburg', label: 'Екатеринбург (UTC+5)', short: 'UTC+5' },
+  { id: 'Asia/Novosibirsk', label: 'Новосибирск (UTC+7)', short: 'UTC+7' },
+  { id: 'Asia/Vladivostok', label: 'Владивосток (UTC+10)', short: 'UTC+10' },
+  { id: 'Europe/Tbilisi', label: 'Тбилиси (UTC+4)', short: 'TBS' },
+  { id: 'Europe/Kiev', label: 'Киев (UTC+2)', short: 'UTC+2' },
+  { id: 'Asia/Almaty', label: 'Алматы (UTC+6)', short: 'UTC+6' },
+]
+
+function formatTimezone(tz: string | null): string {
+  const found = TIMEZONES.find((t) => t.id === tz)
+  return found ? found.short : 'MSK'
+}
+
 interface UserSettings {
   newWordsPerDay: number
   learningMode: LearningMode
@@ -8,6 +26,7 @@ interface UserSettings {
   preferredHours: number[]
   activeHoursStart: number
   activeHoursEnd: number
+  timezone: string | null
 }
 
 /**
@@ -42,6 +61,13 @@ export function createSettingsKeyboard(user: UserSettings) {
     ],
     // Configure hours button
     [Markup.button.callback('⏰ Настроить время', 'settings:hours:menu')],
+    // Timezone button
+    [
+      Markup.button.callback(
+        `🌍 Часовой пояс: ${formatTimezone(user.timezone)}`,
+        'settings:timezone:menu',
+      ),
+    ],
     // Pause/Resume row
     [
       isPaused
@@ -114,6 +140,30 @@ export function createHoursKeyboard(user: UserSettings) {
       [Markup.button.callback('« Назад к настройкам', 'settings:open')],
     ])
   }
+}
+
+/**
+ * Create timezone selection keyboard
+ */
+export function createTimezoneKeyboard(currentTimezone: string | null) {
+  const tz = currentTimezone || 'Europe/Moscow'
+
+  const buttons = TIMEZONES.map((timezone) =>
+    Markup.button.callback(
+      timezone.id === tz ? `✓ ${timezone.label}` : timezone.label,
+      `settings:timezone:${timezone.id}`,
+    ),
+  )
+
+  // 3 buttons per row
+  const rows: ReturnType<typeof Markup.button.callback>[][] = []
+  for (let i = 0; i < buttons.length; i += 2) {
+    rows.push(buttons.slice(i, i + 2))
+  }
+
+  rows.push([Markup.button.callback('« Назад к настройкам', 'settings:open')])
+
+  return Markup.inlineKeyboard(rows)
 }
 
 /**

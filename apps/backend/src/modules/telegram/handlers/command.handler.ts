@@ -109,13 +109,28 @@ export class CommandHandler {
       }
 
       const modeText = user.learningMode === LearningMode.ACTIVE ? 'Активен' : 'Пауза'
-      const hoursText = user.preferredHours.map((h) => `${h}:00`).join(', ')
+
+      let intervalText: string
+      if (user.pushIntervalMinutes === 0) {
+        intervalText = `в ${user.preferredHours.join(', ')}:00`
+      } else if (user.pushIntervalMinutes === 5) {
+        intervalText = 'каждые 5 мин'
+      } else if (user.pushIntervalMinutes === 10) {
+        intervalText = 'каждые 10 мин'
+      } else if (user.pushIntervalMinutes === 60) {
+        intervalText = 'каждый час'
+      } else {
+        intervalText = `${user.pushIntervalMinutes} мин`
+      }
+
+      const timezoneText = this.formatTimezoneText(user.timezone)
 
       const message = formatMessage(MESSAGES.SETTINGS_MENU, {
         wordsPerDay: user.newWordsPerDay,
         todayProgress: `${user.todayNewWordsCount}/${user.newWordsPerDay}`,
         mode: modeText,
-        hours: hoursText,
+        interval: intervalText,
+        timezone: timezoneText,
       })
 
       await ctx.reply(message, {
@@ -126,5 +141,20 @@ export class CommandHandler {
       this.logger.error({ error }, 'Failed to handle /settings command')
       await ctx.reply(MESSAGES.ERROR_GENERIC, { parse_mode: 'HTML' })
     }
+  }
+
+  private formatTimezoneText(tz: string | null): string {
+    const timezones: Record<string, string> = {
+      'Europe/Moscow': 'Москва (UTC+3)',
+      'Europe/Kaliningrad': 'Калининград (UTC+2)',
+      'Europe/Samara': 'Самара (UTC+4)',
+      'Asia/Yekaterinburg': 'Екатеринбург (UTC+5)',
+      'Asia/Novosibirsk': 'Новосибирск (UTC+7)',
+      'Asia/Vladivostok': 'Владивосток (UTC+10)',
+      'Europe/Tbilisi': 'Тбилиси (UTC+4)',
+      'Europe/Kiev': 'Киев (UTC+2)',
+      'Asia/Almaty': 'Алматы (UTC+6)',
+    }
+    return timezones[tz || 'Europe/Moscow'] || 'Москва (UTC+3)'
   }
 }

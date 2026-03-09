@@ -5,7 +5,11 @@ import { PinoLogger } from 'nestjs-pino'
 import { LearningMode } from '@prisma/client'
 import { PrismaService } from '../../../common/prisma/prisma.service'
 import { MESSAGES, formatMessage } from '../constants/messages'
-import { createSettingsKeyboard, createHoursKeyboard } from '../keyboards/settings.keyboard'
+import {
+  createSettingsKeyboard,
+  createHoursKeyboard,
+  createTimezoneKeyboard,
+} from '../keyboards/settings.keyboard'
 
 /**
  * Handler for /settings command and settings actions
@@ -82,6 +86,65 @@ export class SettingsHandler {
   @Action('settings:interval:60')
   async onSetInterval60(@Ctx() ctx: Context) {
     await this.updatePushInterval(ctx, 60)
+  }
+
+  @Action('settings:timezone:menu')
+  async onTimezoneMenu(@Ctx() ctx: Context) {
+    try {
+      const from = ctx.from
+      if (!from) return
+
+      const user = await this.prisma.user.findUnique({
+        where: { telegramId: BigInt(from.id) },
+      })
+
+      if (!user) {
+        await ctx.answerCbQuery('Ошибка')
+        return
+      }
+
+      await ctx.answerCbQuery()
+
+      await ctx.editMessageText(MESSAGES.SETTINGS_TIMEZONE_SELECT, {
+        parse_mode: 'HTML',
+        ...createTimezoneKeyboard(user.timezone),
+      })
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to show timezone menu')
+      await ctx.answerCbQuery('Ошибка')
+    }
+  }
+
+  @Action(/^settings:timezone:(.+)$/)
+  async onSetTimezone(@Ctx() ctx: Context) {
+    try {
+      const from = ctx.from
+      if (!from) return
+
+      const callbackData = 'data' in ctx.callbackQuery! ? ctx.callbackQuery.data : ''
+      const match = callbackData.match(/^settings:timezone:(.+)$/)
+      if (!match) return
+
+      const timezone = match[1]
+      if (timezone === 'menu') return // Already handled by onTimezoneMenu
+
+      const user = await this.prisma.user.update({
+        where: { telegramId: BigInt(from.id) },
+        data: { timezone },
+      })
+
+      await ctx.answerCbQuery(`Часовой пояс: ${timezone}`)
+
+      await ctx.editMessageText(this.formatSettingsMessage(user), {
+        parse_mode: 'HTML',
+        ...createSettingsKeyboard(user),
+      })
+
+      this.logger.info({ telegramId: from.id, timezone }, 'User updated timezone')
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to update timezone')
+      await ctx.answerCbQuery('Ошибка')
+    }
   }
 
   @Action('settings:hours:menu')
@@ -367,6 +430,7 @@ export class SettingsHandler {
     preferredHours: number[]
     activeHoursStart: number
     activeHoursEnd: number
+    timezone: string | null
   }): string {
     const modeText = user.learningMode === LearningMode.ACTIVE ? 'Активен' : 'Пауза'
     const todayProgress = `${user.todayNewWordsCount}/${user.newWordsPerDay}`
@@ -378,11 +442,29 @@ export class SettingsHandler {
       intervalText = this.formatIntervalText(user.pushIntervalMinutes)
     }
 
+    const timezoneText = this.formatTimezoneText(user.timezone)
+
     return formatMessage(MESSAGES.SETTINGS_MENU, {
       wordsPerDay: user.newWordsPerDay,
       todayProgress,
       mode: modeText,
       interval: intervalText,
+      timezone: timezoneText,
     })
+  }
+
+  private formatTimezoneText(tz: string | null): string {
+    const timezones: Record<string, string> = {
+      'Europe/Moscow': 'Москва (UTC+3)',
+      'Europe/Kaliningrad': 'Калининград (UTC+2)',
+      'Europe/Samara': 'Самара (UTC+4)',
+      'Asia/Yekaterinburg': 'Екатеринбург (UTC+5)',
+      'Asia/Novosibirsk': 'Новосибирск (UTC+7)',
+      'Asia/Vladivostok': 'Владивосток (UTC+10)',
+      'Europe/Tbilisi': 'Тбилиси (UTC+4)',
+      'Europe/Kiev': 'Киев (UTC+2)',
+      'Asia/Almaty': 'Алматы (UTC+6)',
+    }
+    return timezones[tz || 'Europe/Moscow'] || 'Москва (UTC+3)'
   }
 }
