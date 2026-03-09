@@ -195,6 +195,10 @@ model UserWordProgress {
   incorrectCount  Int       @default(0)
   totalAttempts   Int       @default(0)
 
+  // Streak tracking for daily mastery
+  consecutiveCorrect Int    @default(0)  // current streak of correct answers
+  masteredToday      Boolean @default(false)  // counted toward today's goal
+
   lastSeenAt      DateTime?
   lastCorrectAt   DateTime?
   lastIncorrectAt DateTime?
@@ -212,6 +216,7 @@ model UserWordProgress {
   @@index([userId, status])
   @@index([userId, rating])
   @@index([userId, nextReviewAt])
+  @@index([userId, masteredToday])
 }
 
 enum LearningStatus {

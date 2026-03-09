@@ -133,7 +133,8 @@ export class LearningSchedulerService {
     this.logger.info('Resetting daily learning counters')
 
     try {
-      const result = await this.prisma.user.updateMany({
+      // Reset user daily counts
+      const userResult = await this.prisma.user.updateMany({
         where: {
           todayNewWordsCount: { gt: 0 },
         },
@@ -143,7 +144,21 @@ export class LearningSchedulerService {
         },
       })
 
-      this.logger.info({ updatedCount: result.count }, 'Daily counters reset')
+      // Reset word mastery flags for new day
+      const progressResult = await this.prisma.userWordProgress.updateMany({
+        where: {
+          masteredToday: true,
+        },
+        data: {
+          masteredToday: false,
+          consecutiveCorrect: 0,
+        },
+      })
+
+      this.logger.info(
+        { usersReset: userResult.count, progressReset: progressResult.count },
+        'Daily counters reset',
+      )
     } catch (error) {
       this.logger.error({ error }, 'Failed to reset daily counters')
     }

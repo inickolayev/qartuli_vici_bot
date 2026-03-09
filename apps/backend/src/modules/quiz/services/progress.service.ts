@@ -3,6 +3,8 @@ import { PinoLogger } from 'nestjs-pino'
 import { LearningStatus } from '@prisma/client'
 import { PrismaService } from '../../../common/prisma/prisma.service'
 
+const MASTERY_STREAK_THRESHOLD = 3 // 3 correct answers in a row to count as mastered today
+
 @Injectable()
 export class ProgressService {
   constructor(
@@ -14,10 +16,16 @@ export class ProgressService {
 
   /**
    * Update user word progress after quiz answer
+   * Returns true if word was newly mastered today (for daily count)
    */
-  async updateProgress(userId: string, wordId: string, isCorrect: boolean): Promise<void> {
+  async updateProgress(
+    userId: string,
+    wordId: string,
+    isCorrect: boolean,
+  ): Promise<{ masteredToday: boolean }> {
     try {
       const now = new Date()
+      let newlyMasteredToday = false
 
       const existing = await this.prisma.userWordProgress.findUnique({
         where: {
@@ -29,9 +37,29 @@ export class ProgressService {
       })
 
       if (existing) {
+        // Calculate new streak
+        const newConsecutiveCorrect = isCorrect ? existing.consecutiveCorrect + 1 : 0
+
+        // Check if just reached mastery threshold
+        const shouldCountToday =
+          newConsecutiveCorrect >= MASTERY_STREAK_THRESHOLD && !existing.masteredToday
+
+        if (shouldCountToday) {
+          newlyMasteredToday = true
+          // Increment user's daily count
+          await this.prisma.user.update({
+            where: { id: userId },
+            data: { todayNewWordsCount: { increment: 1 } },
+          })
+        }
+
         const updated = await this.prisma.userWordProgress.update({
           where: { id: existing.id },
-          data: this.calculateProgressUpdate(existing, isCorrect, now),
+          data: {
+            ...this.calculateProgressUpdate(existing, isCorrect, now),
+            consecutiveCorrect: newConsecutiveCorrect,
+            masteredToday: existing.masteredToday || shouldCountToday,
+          },
         })
 
         this.logger.debug(
@@ -41,12 +69,13 @@ export class ProgressService {
             isCorrect,
             oldRating: existing.rating,
             newRating: updated.rating,
-            oldStatus: existing.status,
-            newStatus: updated.status,
+            consecutiveCorrect: newConsecutiveCorrect,
+            newlyMasteredToday,
           },
           'Progress updated',
         )
       } else {
+        // First time seeing this word
         await this.prisma.userWordProgress.create({
           data: {
             userId,
@@ -55,6 +84,8 @@ export class ProgressService {
             correctCount: isCorrect ? 1 : 0,
             incorrectCount: isCorrect ? 0 : 1,
             totalAttempts: 1,
+            consecutiveCorrect: isCorrect ? 1 : 0,
+            masteredToday: false,
             lastSeenAt: now,
             lastCorrectAt: isCorrect ? now : null,
             lastIncorrectAt: isCorrect ? null : now,
@@ -65,6 +96,8 @@ export class ProgressService {
 
         this.logger.debug({ userId, wordId, isCorrect }, 'New progress created')
       }
+
+      return { masteredToday: newlyMasteredToday }
     } catch (error) {
       this.logger.error({ error, userId, wordId }, 'Failed to update progress')
       throw error
