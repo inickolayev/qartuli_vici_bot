@@ -1,0 +1,86 @@
+name: Deploy to Prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy'
+        required: true
+        default: 'main'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Set deployment variables
+        run: |
+          echo "DEPLOY_PATH=${{ vars.DEPLOY_PATH }}" >> $GITHUB_ENV
+          echo "SSH_USER=${{ vars.SSH_USER }}" >> $GITHUB_ENV
+          echo "SSH_HOST=${{ vars.SSH_HOST }}" >> $GITHUB_ENV
+
+      - name: Debug connection
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.SSH_HOST }} 'echo "SSH connection successful"'
+
+      - name: Sync project files to server
+        run: |
+          rsync -avz --delete \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude '.env' \
+            --exclude '*.log' \
+            --rsync-path="sudo rsync" \
+            -e "ssh -o StrictHostKeyChecking=no" \
+            ./ ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:${{ env.DEPLOY_PATH }}
+
+      - name: Deploy
+        run: |
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ServerAliveCountMax=10 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} << 'EOF'
+            set -e
+
+            echo "🚀 Начинаем деплой Qartuli Bot..."
+
+            cd ${{ env.DEPLOY_PATH }}
+
+            if [ ! -f .env ]; then
+              echo "❌ Ошибка: .env файл не найден!"
+              exit 1
+            fi
+
+            # Update VERSION in .env
+            SHORT_HASH=$(echo "${{ github.sha }}" | cut -c1-7)
+            BRANCH="${{ github.event.inputs.branch }}"
+            sudo sed -i '/^VERSION=/d' .env
+            sudo sed -i '/^SHOW_VERSION=/d' .env
+            echo "VERSION=${BRANCH}@${SHORT_HASH}" | sudo tee -a .env > /dev/null
+            echo "SHOW_VERSION=false" | sudo tee -a .env > /dev/null
+            echo "📝 Set VERSION=${BRANCH}@${SHORT_HASH}"
+
+            echo "🛑 Останавливаем текущие контейнеры..."
+            sudo docker compose -f docker-compose.prod.yml down || true
+
+            echo "🚀 Запускаем Qartuli Bot..."
+            sudo docker compose -f docker-compose.prod.yml up -d --build
+
+            echo "⏳ Ждем запуска приложения..."
+            sleep 15
+
+            echo "📊 Статус контейнеров:"
+            sudo docker compose -f docker-compose.prod.yml ps
+
+            echo "🧹 Очищаем старые образы..."
+            sudo docker image prune -f
+
+            echo "✅ Деплой Qartuli Bot завершен!"
+          EOF
