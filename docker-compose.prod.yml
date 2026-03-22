@@ -8,7 +8,7 @@ services:
     container_name: qartuli-backend
     restart: unless-stopped
     ports:
-      - '3000:3000'
+      - '3010:3000'
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -35,7 +35,7 @@ services:
     container_name: qartuli-admin
     restart: unless-stopped
     ports:
-      - '3001:80'
+      - '3011:80'
     environment:
       - VITE_API_URL=${API_URL:-http://localhost:3000}
     networks:
