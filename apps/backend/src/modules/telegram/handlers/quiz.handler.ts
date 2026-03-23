@@ -11,6 +11,7 @@ import { MESSAGES, formatMessage } from '../constants/messages'
 import { createQuizKeyboard } from '../keyboards/quiz.keyboard'
 import { createMainKeyboard } from '../keyboards/main.keyboard'
 import { QuizSessionType } from '@prisma/client'
+import { BulkImportSession, BulkImportState } from '../types/bulk-import.types'
 
 interface QuizContext extends Context {
   session?: {
@@ -245,6 +246,12 @@ export class QuizHandler {
       const from = ctx.from
       if (!from || !('text' in ctx.message!)) return
 
+      // Check if user is in bulk import mode - let BulkImportHandler handle it
+      const bulkImportSession = await this.getBulkImportSession(from.id.toString())
+      if (bulkImportSession?.state === BulkImportState.COLLECTING) {
+        return // Skip - BulkImportHandler will process this
+      }
+
       // Check if user is editing a word - handle that first
       const handled = await this.wordEditHandler.handleEditInput(ctx)
       if (handled) return
@@ -362,5 +369,19 @@ export class QuizHandler {
       parse_mode: 'HTML',
       ...createQuizKeyboard(question.options, questionIndex),
     })
+  }
+
+  /**
+   * Check if user has an active bulk import session
+   */
+  private async getBulkImportSession(telegramId: string): Promise<BulkImportSession | null> {
+    const key = `bulk_import:${telegramId}`
+    const data = await this.redis.get(key)
+    if (!data) return null
+    try {
+      return JSON.parse(data) as BulkImportSession
+    } catch {
+      return null
+    }
   }
 }
