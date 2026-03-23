@@ -82,22 +82,48 @@ try {
 
 ## Commands
 
-```bash
-# Development
-npm run dev              # Start backend
-npm run dev:admin        # Start admin panel
-npm run docker:up        # Start PostgreSQL + Redis
+**ALWAYS use Docker for local development:**
 
-# Database
+```bash
+# Local development (THE ONLY WAY to run locally)
+docker compose -f docker-compose.local.yml up
+
+# NEVER use npm run dev or direct npm commands for running the app
+```
+
+```bash
+# Database (these are OK to run directly)
 npm run db:migrate:dev   # Create migration
 npm run db:generate      # Generate Prisma client
 npm run db:studio        # Open Prisma Studio
 
-# Quality
+# Quality (these are OK to run directly)
 npm run lint             # Run ESLint
 npm run test             # Run tests
-npm run build            # Build all
+npm run build            # Build all (for CI/testing only)
 ```
+
+## Deployment
+
+**CRITICAL DEPLOYMENT RULES:**
+
+1. **ALWAYS test locally first** before any deployment
+2. **NEVER deploy without user approval** - wait for explicit confirmation that everything works locally
+3. **NEVER manually deploy** - no rsync, scp, or ssh to copy files to server
+4. **ONLY deploy through GitHub Actions** when user approves
+
+To deploy (only after user approval):
+
+```bash
+gh workflow run deploy-prod.yml
+```
+
+The workflow handles:
+
+- Syncing files via rsync
+- Building Docker containers
+- Running migrations
+- Restarting services
 
 ## Environment Variables
 

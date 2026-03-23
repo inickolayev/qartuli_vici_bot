@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, forwardRef, Inject } from '@nestjs/common'
 import { Action, Command, Ctx, Hears, Update } from 'nestjs-telegraf'
 import { Context, Markup } from 'telegraf'
 import { PinoLogger } from 'nestjs-pino'
@@ -7,6 +7,7 @@ import { RedisService } from '../../../common/redis/redis.service'
 import { QuizService } from '../../quiz/quiz.service'
 import { CollectionsService } from '../../collections/collections.service'
 import { WordEditHandler } from './word-edit.handler'
+import { BulkImportHandler } from './bulk-import.handler'
 import { MESSAGES, formatMessage } from '../constants/messages'
 import { createQuizKeyboard } from '../keyboards/quiz.keyboard'
 import { createMainKeyboard } from '../keyboards/main.keyboard'
@@ -30,6 +31,8 @@ export class QuizHandler {
     private readonly quizService: QuizService,
     private readonly collectionsService: CollectionsService,
     private readonly wordEditHandler: WordEditHandler,
+    @Inject(forwardRef(() => BulkImportHandler))
+    private readonly bulkImportHandler: BulkImportHandler,
   ) {
     this.logger.setContext(QuizHandler.name)
   }
@@ -246,10 +249,14 @@ export class QuizHandler {
       const from = ctx.from
       if (!from || !('text' in ctx.message!)) return
 
-      // Check if user is in bulk import mode - let BulkImportHandler handle it
+      this.logger.info({ telegramId: from.id }, 'QuizHandler received text message')
+
+      // Check if user is in bulk import mode - delegate to BulkImportHandler
       const bulkImportSession = await this.getBulkImportSession(from.id.toString())
       if (bulkImportSession?.state === BulkImportState.COLLECTING) {
-        return // Skip - BulkImportHandler will process this
+        this.logger.info({ telegramId: from.id }, 'Delegating to BulkImportHandler')
+        await this.bulkImportHandler.onText(ctx)
+        return
       }
 
       // Check if user is editing a word - handle that first
@@ -377,6 +384,7 @@ export class QuizHandler {
   private async getBulkImportSession(telegramId: string): Promise<BulkImportSession | null> {
     const key = `bulk_import:${telegramId}`
     const data = await this.redis.get(key)
+    this.logger.info({ key, hasData: !!data }, 'Checking bulk import session')
     if (!data) return null
     try {
       return JSON.parse(data) as BulkImportSession
