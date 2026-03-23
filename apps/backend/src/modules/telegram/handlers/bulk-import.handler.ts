@@ -98,6 +98,10 @@ export class BulkImportHandler {
       }
 
       const text = message.text
+      this.logger.debug(
+        { text: text.substring(0, 100), telegramId: from.id },
+        'Received text message',
+      )
 
       // Skip commands
       if (text.startsWith('/')) {
@@ -175,7 +179,17 @@ export class BulkImportHandler {
     // If no pairs found, fall back to just Georgian words
     const georgianWords = wordPairs.length > 0 ? [] : this.extractGeorgianWords(text)
 
+    this.logger.debug(
+      {
+        text: text.substring(0, 100),
+        wordPairs: wordPairs.length,
+        georgianWords: georgianWords.length,
+      },
+      'Parsing words in collecting mode',
+    )
+
     if (wordPairs.length === 0 && georgianWords.length === 0) {
+      this.logger.debug({ text: text.substring(0, 100) }, 'No words found in message')
       return // No Georgian words, ignore
     }
 
