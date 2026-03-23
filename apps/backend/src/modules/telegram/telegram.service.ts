@@ -9,6 +9,7 @@ const BOT_COMMANDS = [
   { command: 'start', description: 'Начать / Главное меню' },
   { command: 'quiz', description: 'Начать квиз' },
   { command: 'add', description: 'Добавить слово: /add გამარჯობა - привет' },
+  { command: 'import', description: 'Импорт слов из сообщений' },
   { command: 'settings', description: 'Настройки обучения' },
   { command: 'stats', description: 'Моя статистика' },
   { command: 'collections', description: 'Мои коллекции' },

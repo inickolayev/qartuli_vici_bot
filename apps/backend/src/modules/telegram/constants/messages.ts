@@ -236,7 +236,18 @@ export const MESSAGES = {
 
 Формат: <code>/add грузинское_слово - перевод</code>`,
 
-  // Bulk Import
+  // Bulk Import - Collection Mode
+  BULK_IMPORT_COLLECTING_START: `📥 <b>Режим сбора слов</b>
+
+Пересылай или пиши сообщения с грузинскими словами.
+Я буду собирать все слова.
+
+Когда закончишь — нажми <b>"Готово"</b>.`,
+
+  BULK_IMPORT_COLLECTING_ADDED: `➕ Добавлено: <b>{added}</b> — {preview}
+📊 Всего собрано: <b>{total}</b>`,
+
+  // Bulk Import - Auto Detection
   BULK_IMPORT_DETECTED: `📝 Обнаружено <b>{count}</b> грузинских слов:
 {preview}
 
