@@ -29,17 +29,22 @@ import { WordEditHandler } from './handlers/word-edit.handler'
           throw new Error('TELEGRAM_BOT_TOKEN is required')
         }
 
+        const webhookUrl = config.get<string>('telegram.webhookUrl')
+
+        // Use webhook in production if URL is set, otherwise use polling
+        const launchOptions =
+          process.env.NODE_ENV === 'production' && webhookUrl
+            ? {
+                webhook: {
+                  domain: webhookUrl,
+                  secretToken: config.get<string>('telegram.webhookSecret'),
+                },
+              }
+            : undefined
+
         return {
           token: botToken,
-          launchOptions:
-            process.env.NODE_ENV === 'production'
-              ? {
-                  webhook: {
-                    domain: config.get<string>('telegram.webhookUrl')!,
-                    secretToken: config.get<string>('telegram.webhookSecret'),
-                  },
-                }
-              : undefined,
+          launchOptions,
         }
       },
       inject: [ConfigService],
