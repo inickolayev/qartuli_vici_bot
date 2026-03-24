@@ -103,6 +103,25 @@ npm run test             # Run tests
 npm run build            # Build all (for CI/testing only)
 ```
 
+## Testing
+
+**MANDATORY TESTING RULES:**
+
+1. **ALWAYS test features yourself** after implementation via local environment
+2. **Use the test chat UI** at `http://localhost:3000/chat/chat.html` to verify bot functionality
+3. **Test via curl** for API endpoints: `curl -s -X POST http://localhost:3000/api/chat/message -H 'Content-Type: application/json' -d '{"userId": "test1", "text": "/command"}'`
+4. **Check logs** for errors during testing: `docker compose -f docker-compose.local.yml logs backend --tail=50`
+5. **Verify database changes**: `docker compose -f docker-compose.local.yml exec -T db psql -U postgres -d qartuli_bot -c "SELECT ..."`
+6. **Never mark a feature as complete** without successful local testing
+
+**SHARED SERVICES ARCHITECTURE:**
+
+Test chat (`ChatBotService`) and Telegram handlers MUST use the same business logic services:
+
+- `SettingsService` - settings management (used by both `SettingsHandler` and `ChatBotService`)
+- When adding new features, create a shared service in `telegram/services/` and use it in both places
+- **NEVER duplicate business logic** between test chat and Telegram handlers
+
 ## Deployment
 
 **CRITICAL DEPLOYMENT RULES:**

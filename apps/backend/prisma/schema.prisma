@@ -36,6 +36,7 @@ model User {
   pushIntervalMinutes Int          @default(0)   // 0=use preferredHours, 5/10/60=interval mode
   activeHoursStart   Int           @default(8)   // Start of active hours (for interval mode)
   activeHoursEnd     Int           @default(22)  // End of active hours (for interval mode)
+  quizWordsCount     Int           @default(10)  // 5, 10, 15 - number of words per quiz
   lastLearningPushAt DateTime?
 
   // Learning stats (daily counters)

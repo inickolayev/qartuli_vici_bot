@@ -1,6 +1,9 @@
 /**
  * Chat bot types for testing interface
+ * Uses shared KeyboardLayout type for consistency with Telegram bot
  */
+
+import { KeyboardLayout } from '../../telegram/keyboards/types'
 
 export interface ChatUser {
   id: string // Simulated user ID (will be used as key)
@@ -11,15 +14,10 @@ export interface ChatUser {
   languageCode?: string
 }
 
-export interface ChatButton {
-  text: string
-  callbackData: string
-}
-
 export interface ChatResponse {
   text: string
   parseMode?: 'HTML' | 'plain'
-  buttons?: ChatButton[][]
+  buttons?: KeyboardLayout
 }
 
 export interface ChatSession {
@@ -44,6 +42,6 @@ export interface ChatHistoryEntry {
   id: string
   role: 'user' | 'bot'
   text: string
-  buttons?: ChatButton[][]
+  buttons?: KeyboardLayout
   timestamp: Date
 }

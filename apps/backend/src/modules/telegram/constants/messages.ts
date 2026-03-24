@@ -165,12 +165,13 @@ export const MESSAGES = {
   SETTINGS_MENU: `⚙️ <b>Настройки обучения</b>
 
 📚 Новых слов в день: <b>{wordsPerDay}</b>
+🎯 Слов в квизе: <b>{quizWordsCount}</b>
 📊 Сегодня изучено: {todayProgress}
 🔔 Режим: {mode}
 🔄 Напоминания: {interval}
 🌍 Часовой пояс: {timezone}
 
-<i>Слова в день / Частота напоминаний:</i>`,
+<i>Настройки:</i>`,
 
   SETTINGS_UPDATED: `✅ Настройки обновлены!
 

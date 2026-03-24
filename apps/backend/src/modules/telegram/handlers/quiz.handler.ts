@@ -86,10 +86,10 @@ export class QuizHandler {
         return
       }
 
-      // Start new quiz
+      // Start new quiz with user's preferred word count
       const quiz = await this.quizService.startQuiz(user.id, {
         type: QuizSessionType.MANUAL,
-        questionCount: 5,
+        questionCount: user.quizWordsCount,
       })
 
       await ctx.reply(formatMessage(MESSAGES.QUIZ_STARTED, { total: quiz.totalQuestions }), {

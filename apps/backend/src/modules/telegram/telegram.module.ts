@@ -18,6 +18,7 @@ import { BulkImportHandler } from './handlers/bulk-import.handler'
 import { SettingsHandler } from './handlers/settings.handler'
 import { StatsHandler } from './handlers/stats.handler'
 import { WordEditHandler } from './handlers/word-edit.handler'
+import { SettingsModule } from './services/settings.module'
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { WordEditHandler } from './handlers/word-edit.handler'
     WordsModule,
     LLMModule,
     forwardRef(() => LearningModule),
+    SettingsModule,
   ],
   providers: [
     TelegramService,

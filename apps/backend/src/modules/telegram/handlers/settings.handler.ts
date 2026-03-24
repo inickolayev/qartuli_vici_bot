@@ -2,9 +2,8 @@ import { Injectable } from '@nestjs/common'
 import { Update, Ctx, Action } from 'nestjs-telegraf'
 import { Context } from 'telegraf'
 import { PinoLogger } from 'nestjs-pino'
-import { LearningMode } from '@prisma/client'
-import { PrismaService } from '../../../common/prisma/prisma.service'
-import { MESSAGES, formatMessage } from '../constants/messages'
+import { MESSAGES } from '../constants/messages'
+import { SettingsService } from '../services/settings.service'
 import {
   createSettingsKeyboard,
   createHoursKeyboard,
@@ -18,7 +17,7 @@ import {
 @Injectable()
 export class SettingsHandler {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly settingsService: SettingsService,
     private readonly logger: PinoLogger,
   ) {
     this.logger.setContext(SettingsHandler.name)
@@ -30,22 +29,18 @@ export class SettingsHandler {
       const from = ctx.from
       if (!from) return
 
-      const user = await this.prisma.user.findUnique({
-        where: { telegramId: BigInt(from.id) },
-      })
+      const result = await this.settingsService.getSettings(BigInt(from.id))
 
-      if (!user) {
+      if (!result) {
         await ctx.answerCbQuery('Сначала нажми /start')
         return
       }
 
       await ctx.answerCbQuery()
 
-      const message = this.formatSettingsMessage(user)
-
-      await ctx.editMessageText(message, {
+      await ctx.editMessageText(result.message, {
         parse_mode: 'HTML',
-        ...createSettingsKeyboard(user),
+        ...createSettingsKeyboard(result.user),
       })
     } catch (error) {
       this.logger.error({ error }, 'Failed to open settings')
@@ -66,6 +61,21 @@ export class SettingsHandler {
   @Action('settings:words:30')
   async onSetWords30(@Ctx() ctx: Context) {
     await this.updateWordsPerDay(ctx, 30)
+  }
+
+  @Action('settings:quiz:5')
+  async onSetQuiz5(@Ctx() ctx: Context) {
+    await this.updateQuizWordsCount(ctx, 5)
+  }
+
+  @Action('settings:quiz:10')
+  async onSetQuiz10(@Ctx() ctx: Context) {
+    await this.updateQuizWordsCount(ctx, 10)
+  }
+
+  @Action('settings:quiz:15')
+  async onSetQuiz15(@Ctx() ctx: Context) {
+    await this.updateQuizWordsCount(ctx, 15)
   }
 
   @Action('settings:interval:0')
@@ -94,11 +104,9 @@ export class SettingsHandler {
       const from = ctx.from
       if (!from) return
 
-      const user = await this.prisma.user.findUnique({
-        where: { telegramId: BigInt(from.id) },
-      })
+      const result = await this.settingsService.getSettings(BigInt(from.id))
 
-      if (!user) {
+      if (!result) {
         await ctx.answerCbQuery('Ошибка')
         return
       }
@@ -107,7 +115,7 @@ export class SettingsHandler {
 
       await ctx.editMessageText(MESSAGES.SETTINGS_TIMEZONE_SELECT, {
         parse_mode: 'HTML',
-        ...createTimezoneKeyboard(user.timezone),
+        ...createTimezoneKeyboard(result.user.timezone),
       })
     } catch (error) {
       this.logger.error({ error }, 'Failed to show timezone menu')
@@ -128,19 +136,14 @@ export class SettingsHandler {
       const timezone = match[1]
       if (timezone === 'menu') return // Already handled by onTimezoneMenu
 
-      const user = await this.prisma.user.update({
-        where: { telegramId: BigInt(from.id) },
-        data: { timezone },
-      })
+      const result = await this.settingsService.updateTimezone(BigInt(from.id), timezone)
 
       await ctx.answerCbQuery(`Часовой пояс: ${timezone}`)
 
-      await ctx.editMessageText(this.formatSettingsMessage(user), {
+      await ctx.editMessageText(result.message, {
         parse_mode: 'HTML',
-        ...createSettingsKeyboard(user),
+        ...createSettingsKeyboard(result.user),
       })
-
-      this.logger.info({ telegramId: from.id, timezone }, 'User updated timezone')
     } catch (error) {
       this.logger.error({ error }, 'Failed to update timezone')
       await ctx.answerCbQuery('Ошибка')
@@ -153,11 +156,9 @@ export class SettingsHandler {
       const from = ctx.from
       if (!from) return
 
-      const user = await this.prisma.user.findUnique({
-        where: { telegramId: BigInt(from.id) },
-      })
+      const result = await this.settingsService.getSettings(BigInt(from.id))
 
-      if (!user) {
+      if (!result) {
         await ctx.answerCbQuery('Ошибка')
         return
       }
@@ -165,16 +166,13 @@ export class SettingsHandler {
       await ctx.answerCbQuery()
 
       const message =
-        user.pushIntervalMinutes === 0
+        result.user.pushIntervalMinutes === 0
           ? MESSAGES.SETTINGS_HOURS_SELECT
-          : formatMessage(MESSAGES.SETTINGS_HOURS_RANGE, {
-              start: user.activeHoursStart,
-              end: user.activeHoursEnd,
-            })
+          : `⏰ <b>Активные часы</b>\n\nУведомления будут приходить с <b>${result.user.activeHoursStart}:00</b> до <b>${result.user.activeHoursEnd}:00</b>.\n\nВыбери время начала и окончания:`
 
       await ctx.editMessageText(message, {
         parse_mode: 'HTML',
-        ...createHoursKeyboard(user),
+        ...createHoursKeyboard(result.user),
       })
     } catch (error) {
       this.logger.error({ error }, 'Failed to show hours menu')
@@ -194,38 +192,30 @@ export class SettingsHandler {
 
       const hour = parseInt(match[1], 10)
 
-      const currentUser = await this.prisma.user.findUnique({
-        where: { telegramId: BigInt(from.id) },
-      })
-
-      if (!currentUser) return
+      const currentResult = await this.settingsService.getSettings(BigInt(from.id))
+      if (!currentResult) return
 
       let newHours: number[]
-      if (currentUser.preferredHours.includes(hour)) {
+      if (currentResult.user.preferredHours.includes(hour)) {
         // Remove hour (but keep at least one)
-        if (currentUser.preferredHours.length <= 1) {
+        if (currentResult.user.preferredHours.length <= 1) {
           await ctx.answerCbQuery('Нужен хотя бы один час')
           return
         }
-        newHours = currentUser.preferredHours.filter((h) => h !== hour)
+        newHours = currentResult.user.preferredHours.filter((h) => h !== hour)
       } else {
         // Add hour
-        newHours = [...currentUser.preferredHours, hour].sort((a, b) => a - b)
+        newHours = [...currentResult.user.preferredHours, hour].sort((a, b) => a - b)
       }
 
-      const user = await this.prisma.user.update({
-        where: { telegramId: BigInt(from.id) },
-        data: { preferredHours: newHours },
-      })
+      const result = await this.settingsService.updatePreferredHours(BigInt(from.id), newHours)
 
       await ctx.answerCbQuery()
 
       await ctx.editMessageText(MESSAGES.SETTINGS_HOURS_SELECT, {
         parse_mode: 'HTML',
-        ...createHoursKeyboard(user),
+        ...createHoursKeyboard(result.user),
       })
-
-      this.logger.info({ telegramId: from.id, newHours }, 'User updated preferred hours')
     } catch (error) {
       this.logger.error({ error }, 'Failed to toggle hour')
       await ctx.answerCbQuery('Ошибка')
@@ -244,24 +234,16 @@ export class SettingsHandler {
 
       const hour = parseInt(match[1], 10)
 
-      const user = await this.prisma.user.update({
-        where: { telegramId: BigInt(from.id) },
-        data: { activeHoursStart: hour },
-      })
+      const result = await this.settingsService.updateActiveHoursStart(BigInt(from.id), hour)
 
       await ctx.answerCbQuery(`Начало: ${hour}:00`)
 
-      const message = formatMessage(MESSAGES.SETTINGS_HOURS_RANGE, {
-        start: user.activeHoursStart,
-        end: user.activeHoursEnd,
-      })
+      const message = `⏰ <b>Активные часы</b>\n\nУведомления будут приходить с <b>${result.user.activeHoursStart}:00</b> до <b>${result.user.activeHoursEnd}:00</b>.\n\nВыбери время начала и окончания:`
 
       await ctx.editMessageText(message, {
         parse_mode: 'HTML',
-        ...createHoursKeyboard(user),
+        ...createHoursKeyboard(result.user),
       })
-
-      this.logger.info({ telegramId: from.id, activeHoursStart: hour }, 'User updated start hour')
     } catch (error) {
       this.logger.error({ error }, 'Failed to set start hour')
       await ctx.answerCbQuery('Ошибка')
@@ -280,24 +262,16 @@ export class SettingsHandler {
 
       const hour = parseInt(match[1], 10)
 
-      const user = await this.prisma.user.update({
-        where: { telegramId: BigInt(from.id) },
-        data: { activeHoursEnd: hour },
-      })
+      const result = await this.settingsService.updateActiveHoursEnd(BigInt(from.id), hour)
 
       await ctx.answerCbQuery(`Конец: ${hour}:00`)
 
-      const message = formatMessage(MESSAGES.SETTINGS_HOURS_RANGE, {
-        start: user.activeHoursStart,
-        end: user.activeHoursEnd,
-      })
+      const message = `⏰ <b>Активные часы</b>\n\nУведомления будут приходить с <b>${result.user.activeHoursStart}:00</b> до <b>${result.user.activeHoursEnd}:00</b>.\n\nВыбери время начала и окончания:`
 
       await ctx.editMessageText(message, {
         parse_mode: 'HTML',
-        ...createHoursKeyboard(user),
+        ...createHoursKeyboard(result.user),
       })
-
-      this.logger.info({ telegramId: from.id, activeHoursEnd: hour }, 'User updated end hour')
     } catch (error) {
       this.logger.error({ error }, 'Failed to set end hour')
       await ctx.answerCbQuery('Ошибка')
@@ -315,21 +289,14 @@ export class SettingsHandler {
       const from = ctx.from
       if (!from) return
 
-      const user = await this.prisma.user.update({
-        where: { telegramId: BigInt(from.id) },
-        data: { learningMode: LearningMode.PAUSED },
-      })
+      const result = await this.settingsService.pauseLearning(BigInt(from.id))
 
       await ctx.answerCbQuery('Обучение на паузе')
 
-      const message = MESSAGES.SETTINGS_PAUSED
-
-      await ctx.editMessageText(message, {
+      await ctx.editMessageText(result.message, {
         parse_mode: 'HTML',
-        ...createSettingsKeyboard(user),
+        ...createSettingsKeyboard(result.user),
       })
-
-      this.logger.info({ telegramId: from.id }, 'User paused learning')
     } catch (error) {
       this.logger.error({ error }, 'Failed to pause learning')
       await ctx.answerCbQuery('Ошибка')
@@ -342,23 +309,14 @@ export class SettingsHandler {
       const from = ctx.from
       if (!from) return
 
-      const user = await this.prisma.user.update({
-        where: { telegramId: BigInt(from.id) },
-        data: { learningMode: LearningMode.ACTIVE },
-      })
+      const result = await this.settingsService.resumeLearning(BigInt(from.id))
 
       await ctx.answerCbQuery('Обучение возобновлено')
 
-      const message = formatMessage(MESSAGES.SETTINGS_RESUMED, {
-        wordsPerDay: user.newWordsPerDay,
-      })
-
-      await ctx.editMessageText(message, {
+      await ctx.editMessageText(result.message, {
         parse_mode: 'HTML',
-        ...createSettingsKeyboard(user),
+        ...createSettingsKeyboard(result.user),
       })
-
-      this.logger.info({ telegramId: from.id }, 'User resumed learning')
     } catch (error) {
       this.logger.error({ error }, 'Failed to resume learning')
       await ctx.answerCbQuery('Ошибка')
@@ -370,19 +328,14 @@ export class SettingsHandler {
       const from = ctx.from
       if (!from) return
 
-      const user = await this.prisma.user.update({
-        where: { telegramId: BigInt(from.id) },
-        data: { newWordsPerDay: wordsPerDay },
-      })
+      const result = await this.settingsService.updateWordsPerDay(BigInt(from.id), wordsPerDay)
 
       await ctx.answerCbQuery(`Установлено: ${wordsPerDay} слов в день`)
 
-      await ctx.editMessageText(this.formatSettingsMessage(user), {
+      await ctx.editMessageText(result.message, {
         parse_mode: 'HTML',
-        ...createSettingsKeyboard(user),
+        ...createSettingsKeyboard(result.user),
       })
-
-      this.logger.info({ telegramId: from.id, wordsPerDay }, 'User updated words per day')
     } catch (error) {
       this.logger.error({ error }, 'Failed to update words per day')
       await ctx.answerCbQuery('Ошибка')
@@ -394,77 +347,38 @@ export class SettingsHandler {
       const from = ctx.from
       if (!from) return
 
-      const user = await this.prisma.user.update({
-        where: { telegramId: BigInt(from.id) },
-        data: { pushIntervalMinutes: intervalMinutes },
-      })
+      const result = await this.settingsService.updatePushInterval(BigInt(from.id), intervalMinutes)
 
-      const intervalText = this.formatIntervalText(intervalMinutes)
+      const intervalText =
+        intervalMinutes === 0 ? 'Часы' : intervalMinutes === 60 ? '1ч' : `${intervalMinutes}м`
       await ctx.answerCbQuery(`Интервал: ${intervalText}`)
 
-      await ctx.editMessageText(this.formatSettingsMessage(user), {
+      await ctx.editMessageText(result.message, {
         parse_mode: 'HTML',
-        ...createSettingsKeyboard(user),
+        ...createSettingsKeyboard(result.user),
       })
-
-      this.logger.info({ telegramId: from.id, intervalMinutes }, 'User updated push interval')
     } catch (error) {
       this.logger.error({ error }, 'Failed to update push interval')
       await ctx.answerCbQuery('Ошибка')
     }
   }
 
-  private formatIntervalText(minutes: number): string {
-    if (minutes === 0) return 'выкл'
-    if (minutes === 5) return 'каждые 5 мин'
-    if (minutes === 10) return 'каждые 10 мин'
-    if (minutes === 60) return 'каждый час'
-    return `${minutes} мин`
-  }
+  private async updateQuizWordsCount(ctx: Context, count: number) {
+    try {
+      const from = ctx.from
+      if (!from) return
 
-  private formatSettingsMessage(user: {
-    newWordsPerDay: number
-    todayNewWordsCount: number
-    learningMode: LearningMode
-    pushIntervalMinutes: number
-    preferredHours: number[]
-    activeHoursStart: number
-    activeHoursEnd: number
-    timezone: string | null
-  }): string {
-    const modeText = user.learningMode === LearningMode.ACTIVE ? 'Активен' : 'Пауза'
-    const todayProgress = `${user.todayNewWordsCount}/${user.newWordsPerDay}`
+      const result = await this.settingsService.updateQuizWordsCount(BigInt(from.id), count)
 
-    let intervalText: string
-    if (user.pushIntervalMinutes === 0) {
-      intervalText = `в ${user.preferredHours.join(', ')}:00`
-    } else {
-      intervalText = this.formatIntervalText(user.pushIntervalMinutes)
+      await ctx.answerCbQuery(`Установлено: ${count} слов в квизе`)
+
+      await ctx.editMessageText(result.message, {
+        parse_mode: 'HTML',
+        ...createSettingsKeyboard(result.user),
+      })
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to update quiz words count')
+      await ctx.answerCbQuery('Ошибка')
     }
-
-    const timezoneText = this.formatTimezoneText(user.timezone)
-
-    return formatMessage(MESSAGES.SETTINGS_MENU, {
-      wordsPerDay: user.newWordsPerDay,
-      todayProgress,
-      mode: modeText,
-      interval: intervalText,
-      timezone: timezoneText,
-    })
-  }
-
-  private formatTimezoneText(tz: string | null): string {
-    const timezones: Record<string, string> = {
-      'Europe/Moscow': 'Москва (UTC+3)',
-      'Europe/Kaliningrad': 'Калининград (UTC+2)',
-      'Europe/Samara': 'Самара (UTC+4)',
-      'Asia/Yekaterinburg': 'Екатеринбург (UTC+5)',
-      'Asia/Novosibirsk': 'Новосибирск (UTC+7)',
-      'Asia/Vladivostok': 'Владивосток (UTC+10)',
-      'Europe/Tbilisi': 'Тбилиси (UTC+4)',
-      'Europe/Kiev': 'Киев (UTC+2)',
-      'Asia/Almaty': 'Алматы (UTC+6)',
-    }
-    return timezones[tz || 'Europe/Moscow'] || 'Москва (UTC+3)'
   }
 }

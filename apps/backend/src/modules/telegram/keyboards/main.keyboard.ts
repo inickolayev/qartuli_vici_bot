@@ -1,34 +1,55 @@
-import { Markup } from 'telegraf'
 import { MESSAGES } from '../constants/messages'
+import { KeyboardLayout, toTelegrafKeyboard } from './types'
 
 /**
- * Create main menu inline keyboard
+ * Create main menu keyboard layout (neutral format)
+ */
+export function createMainKeyboardLayout(): KeyboardLayout {
+  return [
+    [{ text: MESSAGES.BUTTON_START_QUIZ, callbackData: 'quiz:start' }],
+    [
+      { text: MESSAGES.BUTTON_MY_STATS, callbackData: 'stats:show' },
+      { text: MESSAGES.BUTTON_MY_STREAK, callbackData: 'streak:show' },
+    ],
+    [
+      { text: MESSAGES.BUTTON_ACHIEVEMENTS, callbackData: 'achievements:show' },
+      { text: MESSAGES.BUTTON_COLLECTIONS, callbackData: 'collections:list' },
+    ],
+    [{ text: MESSAGES.BUTTON_SETTINGS, callbackData: 'settings:open' }],
+  ]
+}
+
+/**
+ * Create main menu inline keyboard (Telegraf format)
  */
 export function createMainKeyboard() {
-  return Markup.inlineKeyboard([
-    [Markup.button.callback(MESSAGES.BUTTON_START_QUIZ, 'quiz:start')],
-    [
-      Markup.button.callback(MESSAGES.BUTTON_MY_STATS, 'stats:show'),
-      Markup.button.callback(MESSAGES.BUTTON_MY_STREAK, 'streak:show'),
-    ],
-    [
-      Markup.button.callback(MESSAGES.BUTTON_ACHIEVEMENTS, 'achievements:show'),
-      Markup.button.callback(MESSAGES.BUTTON_COLLECTIONS, 'collections:list'),
-    ],
-    [Markup.button.callback(MESSAGES.BUTTON_SETTINGS, 'settings:open')],
-  ])
+  return toTelegrafKeyboard(createMainKeyboardLayout())
 }
 
 /**
- * Create back to menu keyboard
+ * Create back to menu keyboard layout (neutral format)
+ */
+export function createBackToMenuKeyboardLayout(): KeyboardLayout {
+  return [[{ text: MESSAGES.BUTTON_BACK, callbackData: 'menu:main' }]]
+}
+
+/**
+ * Create back to menu keyboard (Telegraf format)
  */
 export function createBackToMenuKeyboard() {
-  return Markup.inlineKeyboard([[Markup.button.callback(MESSAGES.BUTTON_BACK, 'menu:main')]])
+  return toTelegrafKeyboard(createBackToMenuKeyboardLayout())
 }
 
 /**
- * Create close keyboard (single close button)
+ * Create close keyboard layout (neutral format)
+ */
+export function createCloseKeyboardLayout(): KeyboardLayout {
+  return [[{ text: MESSAGES.BUTTON_CLOSE, callbackData: 'menu:close' }]]
+}
+
+/**
+ * Create close keyboard (Telegraf format)
  */
 export function createCloseKeyboard() {
-  return Markup.inlineKeyboard([[Markup.button.callback(MESSAGES.BUTTON_CLOSE, 'menu:close')]])
+  return toTelegrafKeyboard(createCloseKeyboardLayout())
 }
