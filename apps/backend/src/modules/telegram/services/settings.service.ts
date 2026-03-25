@@ -21,6 +21,37 @@ export interface SettingsResponse {
   user: UserSettings
 }
 
+// Single source of truth for timezones
+export const TIMEZONES = [
+  { id: 'Europe/Moscow', label: 'Москва (UTC+3)', short: 'MSK' },
+  { id: 'Europe/Kaliningrad', label: 'Калининград (UTC+2)', short: 'UTC+2' },
+  { id: 'Europe/Samara', label: 'Самара (UTC+4)', short: 'UTC+4' },
+  { id: 'Asia/Yekaterinburg', label: 'Екатеринбург (UTC+5)', short: 'UTC+5' },
+  { id: 'Asia/Novosibirsk', label: 'Новосибирск (UTC+7)', short: 'UTC+7' },
+  { id: 'Asia/Vladivostok', label: 'Владивосток (UTC+10)', short: 'UTC+10' },
+  { id: 'Europe/Tbilisi', label: 'Тбилиси (UTC+4)', short: 'TBS' },
+  { id: 'Europe/Kiev', label: 'Киев (UTC+2)', short: 'UTC+2' },
+  { id: 'Asia/Almaty', label: 'Алматы (UTC+6)', short: 'UTC+6' },
+]
+
+export const VALID_TIMEZONE_IDS = TIMEZONES.map((t) => t.id)
+
+export function formatTimezoneShort(tz: string | null): string {
+  const found = TIMEZONES.find((t) => t.id === tz)
+  return found ? found.short : 'MSK'
+}
+
+export function formatTimezoneLabel(tz: string | null): string {
+  const found = TIMEZONES.find((t) => t.id === (tz || 'Europe/Moscow'))
+  return found ? found.label : 'Москва (UTC+3)'
+}
+
+// Validation constants
+const VALID_QUIZ_COUNTS = [5, 10, 15]
+const VALID_WORDS_PER_DAY = [10, 20, 30]
+const VALID_PUSH_INTERVALS = [0, 5, 10, 60]
+const VALID_HOURS_RANGE = { min: 0, max: 23 }
+
 @Injectable()
 export class SettingsService {
   constructor(
@@ -46,6 +77,12 @@ export class SettingsService {
   }
 
   async updateQuizWordsCount(telegramId: bigint, count: number): Promise<SettingsResponse> {
+    if (!VALID_QUIZ_COUNTS.includes(count)) {
+      throw new Error(
+        `Invalid quiz words count: ${count}. Allowed: ${VALID_QUIZ_COUNTS.join(', ')}`,
+      )
+    }
+
     const user = await this.prisma.user.update({
       where: { telegramId },
       data: { quizWordsCount: count },
@@ -63,6 +100,12 @@ export class SettingsService {
   }
 
   async updateWordsPerDay(telegramId: bigint, wordsPerDay: number): Promise<SettingsResponse> {
+    if (!VALID_WORDS_PER_DAY.includes(wordsPerDay)) {
+      throw new Error(
+        `Invalid words per day: ${wordsPerDay}. Allowed: ${VALID_WORDS_PER_DAY.join(', ')}`,
+      )
+    }
+
     const user = await this.prisma.user.update({
       where: { telegramId },
       data: { newWordsPerDay: wordsPerDay },
@@ -80,6 +123,12 @@ export class SettingsService {
   }
 
   async updatePushInterval(telegramId: bigint, intervalMinutes: number): Promise<SettingsResponse> {
+    if (!VALID_PUSH_INTERVALS.includes(intervalMinutes)) {
+      throw new Error(
+        `Invalid push interval: ${intervalMinutes}. Allowed: ${VALID_PUSH_INTERVALS.join(', ')}`,
+      )
+    }
+
     const user = await this.prisma.user.update({
       where: { telegramId },
       data: { pushIntervalMinutes: intervalMinutes },
@@ -97,6 +146,10 @@ export class SettingsService {
   }
 
   async updateTimezone(telegramId: bigint, timezone: string): Promise<SettingsResponse> {
+    if (!VALID_TIMEZONE_IDS.includes(timezone)) {
+      throw new Error(`Invalid timezone: ${timezone}. Allowed: ${VALID_TIMEZONE_IDS.join(', ')}`)
+    }
+
     const user = await this.prisma.user.update({
       where: { telegramId },
       data: { timezone },
@@ -128,6 +181,12 @@ export class SettingsService {
   }
 
   async updateActiveHoursStart(telegramId: bigint, hour: number): Promise<SettingsResponse> {
+    if (hour < VALID_HOURS_RANGE.min || hour > VALID_HOURS_RANGE.max) {
+      throw new Error(
+        `Invalid hour: ${hour}. Must be ${VALID_HOURS_RANGE.min}-${VALID_HOURS_RANGE.max}`,
+      )
+    }
+
     const user = await this.prisma.user.update({
       where: { telegramId },
       data: { activeHoursStart: hour },
@@ -145,6 +204,12 @@ export class SettingsService {
   }
 
   async updateActiveHoursEnd(telegramId: bigint, hour: number): Promise<SettingsResponse> {
+    if (hour < VALID_HOURS_RANGE.min || hour > VALID_HOURS_RANGE.max) {
+      throw new Error(
+        `Invalid hour: ${hour}. Must be ${VALID_HOURS_RANGE.min}-${VALID_HOURS_RANGE.max}`,
+      )
+    }
+
     const user = await this.prisma.user.update({
       where: { telegramId },
       data: { activeHoursEnd: hour },
@@ -202,7 +267,7 @@ export class SettingsService {
       intervalText = this.formatIntervalText(user.pushIntervalMinutes)
     }
 
-    const timezoneText = this.formatTimezoneText(user.timezone)
+    const timezoneText = formatTimezoneLabel(user.timezone)
 
     return formatMessage(MESSAGES.SETTINGS_MENU, {
       wordsPerDay: user.newWordsPerDay,
@@ -220,20 +285,5 @@ export class SettingsService {
     if (minutes === 10) return 'каждые 10 мин'
     if (minutes === 60) return 'каждый час'
     return `${minutes} мин`
-  }
-
-  private formatTimezoneText(tz: string | null): string {
-    const timezones: Record<string, string> = {
-      'Europe/Moscow': 'Москва (UTC+3)',
-      'Europe/Kaliningrad': 'Калининград (UTC+2)',
-      'Europe/Samara': 'Самара (UTC+4)',
-      'Asia/Yekaterinburg': 'Екатеринбург (UTC+5)',
-      'Asia/Novosibirsk': 'Новосибирск (UTC+7)',
-      'Asia/Vladivostok': 'Владивосток (UTC+10)',
-      'Europe/Tbilisi': 'Тбилиси (UTC+4)',
-      'Europe/Kiev': 'Киев (UTC+2)',
-      'Asia/Almaty': 'Алматы (UTC+6)',
-    }
-    return timezones[tz || 'Europe/Moscow'] || 'Москва (UTC+3)'
   }
 }

@@ -41,14 +41,18 @@ export class ChatBotService {
 
     const trimmedText = text.trim()
 
+    let response: ChatResponse
     // Handle commands
     if (trimmedText.startsWith('/')) {
       const command = trimmedText.split(' ')[0].toLowerCase()
-      return this.handleCommand(chatUser, command)
+      response = await this.handleCommand(chatUser, command)
+    } else {
+      // Handle free text (quiz answer)
+      response = await this.handleTextAnswer(chatUser, trimmedText)
     }
 
-    // Handle free text (quiz answer)
-    return this.handleTextAnswer(chatUser, trimmedText)
+    this.addToHistory(chatUser.id, 'bot', response.text, response.buttons)
+    return response
   }
 
   /**
@@ -56,7 +60,24 @@ export class ChatBotService {
    */
   async handleCallback(chatUser: ChatUser, callbackData: string): Promise<ChatResponse> {
     this.addToHistory(chatUser.id, 'user', `[Button: ${callbackData}]`)
+    const response = await this.handleCallbackInternal(chatUser, callbackData)
+    this.addToHistory(chatUser.id, 'bot', response.text, response.buttons)
+    return response
+  }
 
+  private async handleCallbackInternal(
+    chatUser: ChatUser,
+    callbackData: string,
+  ): Promise<ChatResponse> {
+    try {
+      return await this.processCallback(chatUser, callbackData)
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to process callback')
+      return this.createResponse(MESSAGES.ERROR_GENERIC)
+    }
+  }
+
+  private async processCallback(chatUser: ChatUser, callbackData: string): Promise<ChatResponse> {
     // Quiz callbacks
     if (callbackData === 'quiz:start') {
       return this.startQuiz(chatUser)
@@ -617,21 +638,11 @@ export class ChatBotService {
   }
 
   private createResponse(text: string, buttons?: KeyboardLayout): ChatResponse {
-    const response: ChatResponse = {
+    return {
       text,
       parseMode: 'HTML',
       buttons,
     }
-
-    // Add to history
-    if (this.chatHistory.size > 0) {
-      const lastUserId = Array.from(this.chatHistory.keys()).pop()
-      if (lastUserId) {
-        this.addToHistory(lastUserId, 'bot', text, buttons)
-      }
-    }
-
-    return response
   }
 
   private addToHistory(

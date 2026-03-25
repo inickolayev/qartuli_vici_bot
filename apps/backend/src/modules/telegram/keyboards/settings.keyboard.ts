@@ -1,34 +1,8 @@
 import { LearningMode } from '@prisma/client'
 import { KeyboardLayout, toTelegrafKeyboard } from './types'
+import { UserSettings, TIMEZONES, formatTimezoneShort } from '../services/settings.service'
 
-// Common timezones for users
-const TIMEZONES = [
-  { id: 'Europe/Moscow', label: 'Москва (UTC+3)', short: 'MSK' },
-  { id: 'Europe/Kaliningrad', label: 'Калининград (UTC+2)', short: 'UTC+2' },
-  { id: 'Europe/Samara', label: 'Самара (UTC+4)', short: 'UTC+4' },
-  { id: 'Asia/Yekaterinburg', label: 'Екатеринбург (UTC+5)', short: 'UTC+5' },
-  { id: 'Asia/Novosibirsk', label: 'Новосибирск (UTC+7)', short: 'UTC+7' },
-  { id: 'Asia/Vladivostok', label: 'Владивосток (UTC+10)', short: 'UTC+10' },
-  { id: 'Europe/Tbilisi', label: 'Тбилиси (UTC+4)', short: 'TBS' },
-  { id: 'Europe/Kiev', label: 'Киев (UTC+2)', short: 'UTC+2' },
-  { id: 'Asia/Almaty', label: 'Алматы (UTC+6)', short: 'UTC+6' },
-]
-
-function formatTimezone(tz: string | null): string {
-  const found = TIMEZONES.find((t) => t.id === tz)
-  return found ? found.short : 'MSK'
-}
-
-export interface UserSettings {
-  newWordsPerDay: number
-  learningMode: LearningMode
-  pushIntervalMinutes: number
-  preferredHours: number[]
-  activeHoursStart: number
-  activeHoursEnd: number
-  timezone: string | null
-  quizWordsCount: number
-}
+export type { UserSettings }
 
 /**
  * Create settings menu keyboard layout (neutral format)
@@ -72,7 +46,7 @@ export function createSettingsKeyboardLayout(user: UserSettings): KeyboardLayout
     // Timezone button
     [
       {
-        text: `🌍 Часовой пояс: ${formatTimezone(user.timezone)}`,
+        text: `🌍 Часовой пояс: ${formatTimezoneShort(user.timezone)}`,
         callbackData: 'settings:timezone:menu',
       },
     ],

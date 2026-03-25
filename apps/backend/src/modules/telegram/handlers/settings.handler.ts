@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { Update, Ctx, Action } from 'nestjs-telegraf'
 import { Context } from 'telegraf'
 import { PinoLogger } from 'nestjs-pino'
-import { MESSAGES } from '../constants/messages'
+import { MESSAGES, formatMessage } from '../constants/messages'
 import { SettingsService } from '../services/settings.service'
 import {
   createSettingsKeyboard,
@@ -168,7 +168,10 @@ export class SettingsHandler {
       const message =
         result.user.pushIntervalMinutes === 0
           ? MESSAGES.SETTINGS_HOURS_SELECT
-          : `⏰ <b>Активные часы</b>\n\nУведомления будут приходить с <b>${result.user.activeHoursStart}:00</b> до <b>${result.user.activeHoursEnd}:00</b>.\n\nВыбери время начала и окончания:`
+          : formatMessage(MESSAGES.SETTINGS_HOURS_RANGE, {
+              start: result.user.activeHoursStart,
+              end: result.user.activeHoursEnd,
+            })
 
       await ctx.editMessageText(message, {
         parse_mode: 'HTML',
@@ -238,7 +241,10 @@ export class SettingsHandler {
 
       await ctx.answerCbQuery(`Начало: ${hour}:00`)
 
-      const message = `⏰ <b>Активные часы</b>\n\nУведомления будут приходить с <b>${result.user.activeHoursStart}:00</b> до <b>${result.user.activeHoursEnd}:00</b>.\n\nВыбери время начала и окончания:`
+      const message = formatMessage(MESSAGES.SETTINGS_HOURS_RANGE, {
+        start: result.user.activeHoursStart,
+        end: result.user.activeHoursEnd,
+      })
 
       await ctx.editMessageText(message, {
         parse_mode: 'HTML',
@@ -266,7 +272,10 @@ export class SettingsHandler {
 
       await ctx.answerCbQuery(`Конец: ${hour}:00`)
 
-      const message = `⏰ <b>Активные часы</b>\n\nУведомления будут приходить с <b>${result.user.activeHoursStart}:00</b> до <b>${result.user.activeHoursEnd}:00</b>.\n\nВыбери время начала и окончания:`
+      const message = formatMessage(MESSAGES.SETTINGS_HOURS_RANGE, {
+        start: result.user.activeHoursStart,
+        end: result.user.activeHoursEnd,
+      })
 
       await ctx.editMessageText(message, {
         parse_mode: 'HTML',
