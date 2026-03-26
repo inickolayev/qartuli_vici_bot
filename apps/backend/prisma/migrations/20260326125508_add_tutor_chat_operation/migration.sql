@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "LLMOperation" ADD VALUE 'TUTOR_CHAT';

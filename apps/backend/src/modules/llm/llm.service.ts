@@ -4,7 +4,13 @@ import { PinoLogger } from 'nestjs-pino'
 import OpenAI from 'openai'
 import { PrismaService } from '../../common/prisma/prisma.service'
 import { LLMOperation } from '@prisma/client'
-import { TranslationResponse, BatchTranslationResponse, LLMConfig } from './types/llm.types'
+import {
+  TranslationResponse,
+  BatchTranslationResponse,
+  LLMConfig,
+  ChatMessage,
+  ChatCompletionResponse,
+} from './types/llm.types'
 
 interface RawTranslationResponse {
   russianPrimary?: unknown
@@ -218,6 +224,48 @@ export class LLMService implements OnModuleInit {
     return {
       remaining: Math.max(0, remaining),
       isExceeded: remaining <= 0,
+    }
+  }
+
+  /**
+   * Multi-turn chat completion (for tutor chat)
+   */
+  async chatCompletion(messages: ChatMessage[], userId?: string): Promise<ChatCompletionResponse> {
+    this.ensureInitialized()
+
+    const startTime = Date.now()
+
+    try {
+      const response = await this.client.chat.completions.create({
+        model: this.config.model,
+        messages,
+        temperature: 0.7,
+      })
+
+      const content = response.choices[0]?.message?.content
+      if (!content) {
+        throw new BadRequestException('Empty response from LLM')
+      }
+
+      const usage = response.usage
+      if (usage) {
+        await this.logUsage(
+          LLMOperation.TUTOR_CHAT,
+          usage.prompt_tokens,
+          usage.completion_tokens,
+          Date.now() - startTime,
+          userId,
+        )
+      }
+
+      return {
+        content,
+        promptTokens: usage?.prompt_tokens || 0,
+        completionTokens: usage?.completion_tokens || 0,
+      }
+    } catch (error) {
+      this.logger.error({ error }, 'Chat completion failed')
+      throw error
     }
   }
 

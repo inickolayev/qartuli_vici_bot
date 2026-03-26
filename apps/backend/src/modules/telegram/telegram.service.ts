@@ -9,6 +9,7 @@ import { MESSAGES, formatMessage } from './constants/messages'
 const BOT_COMMANDS = [
   { command: 'start', description: 'Начать / Главное меню' },
   { command: 'quiz', description: 'Начать квиз' },
+  { command: 'chat', description: 'Чат с учителем грузинского' },
   { command: 'add', description: 'Добавить слово: /add გამარჯობა - привет' },
   { command: 'import', description: 'Импорт слов из сообщений' },
   { command: 'settings', description: 'Настройки обучения' },

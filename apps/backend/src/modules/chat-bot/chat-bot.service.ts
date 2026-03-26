@@ -5,6 +5,7 @@ import { PrismaService } from '../../common/prisma/prisma.service'
 import { QuizService } from '../quiz/quiz.service'
 import { CollectionsService } from '../collections/collections.service'
 import { SettingsService } from '../telegram/services/settings.service'
+import { TutorChatService } from '../telegram/services/tutor-chat.service'
 import { MESSAGES, formatMessage } from '../telegram/constants/messages'
 import {
   createSettingsKeyboardLayout,
@@ -15,6 +16,7 @@ import {
   createMainKeyboardLayout,
   createBackToMenuKeyboardLayout,
 } from '../telegram/keyboards/main.keyboard'
+import { createTutorChatKeyboardLayout } from '../telegram/keyboards/tutor-chat.keyboard'
 import { KeyboardLayout } from '../telegram/keyboards/types'
 import { ChatUser, ChatResponse, ChatSession, ChatHistoryEntry } from './types/chat-bot.types'
 import { nanoid } from 'nanoid'
@@ -28,6 +30,7 @@ export class ChatBotService {
     private readonly quizService: QuizService,
     private readonly collectionsService: CollectionsService,
     private readonly settingsService: SettingsService,
+    private readonly tutorChatService: TutorChatService,
     private readonly logger: PinoLogger,
   ) {
     this.logger.setContext(ChatBotService.name)
@@ -47,8 +50,14 @@ export class ChatBotService {
       const command = trimmedText.split(' ')[0].toLowerCase()
       response = await this.handleCommand(chatUser, command)
     } else {
-      // Handle free text (quiz answer)
-      response = await this.handleTextAnswer(chatUser, trimmedText)
+      // Check tutor chat mode first
+      const isInChat = await this.tutorChatService.isInChatMode(chatUser.telegramId.toString())
+      if (isInChat) {
+        response = await this.handleTutorChatMessage(chatUser, trimmedText)
+      } else {
+        // Handle free text (quiz answer)
+        response = await this.handleTextAnswer(chatUser, trimmedText)
+      }
     }
 
     this.addToHistory(chatUser.id, 'bot', response.text, response.buttons)
@@ -78,8 +87,25 @@ export class ChatBotService {
   }
 
   private async processCallback(chatUser: ChatUser, callbackData: string): Promise<ChatResponse> {
+    // Tutor chat callbacks
+    if (callbackData === 'tutor:start') {
+      return this.startTutorChat(chatUser)
+    }
+
+    if (callbackData === 'tutor:stop') {
+      return this.stopTutorChat(chatUser)
+    }
+
     // Quiz callbacks
     if (callbackData === 'quiz:start') {
+      // Block quiz if in tutor chat mode
+      const isInChat = await this.tutorChatService.isInChatMode(chatUser.telegramId.toString())
+      if (isInChat) {
+        return this.createResponse(
+          MESSAGES.TUTOR_CHAT_QUIZ_BLOCKED,
+          createTutorChatKeyboardLayout(),
+        )
+      }
       return this.startQuiz(chatUser)
     }
 
@@ -265,6 +291,8 @@ export class ChatBotService {
         )
       case '/settings':
         return this.showSettings(chatUser)
+      case '/chat':
+        return this.startTutorChat(chatUser)
       default:
         return this.createResponse(`Unknown command: ${command}`)
     }
@@ -468,6 +496,39 @@ export class ChatBotService {
       this.logger.error({ error }, 'Failed to stop quiz')
       return this.createResponse(MESSAGES.ERROR_GENERIC)
     }
+  }
+
+  // Tutor chat methods - using shared TutorChatService
+
+  private async startTutorChat(chatUser: ChatUser): Promise<ChatResponse> {
+    const isActive = await this.tutorChatService.isInChatMode(chatUser.telegramId.toString())
+    if (isActive) {
+      return this.createResponse(
+        MESSAGES.TUTOR_CHAT_ALREADY_ACTIVE,
+        createTutorChatKeyboardLayout(),
+      )
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { telegramId: chatUser.telegramId },
+    })
+
+    if (!user) {
+      return this.createResponse(MESSAGES.ERROR_NOT_REGISTERED)
+    }
+
+    await this.tutorChatService.startSession(user.id, chatUser.telegramId.toString())
+    return this.createResponse(MESSAGES.TUTOR_CHAT_STARTED, createTutorChatKeyboardLayout())
+  }
+
+  private async stopTutorChat(chatUser: ChatUser): Promise<ChatResponse> {
+    await this.tutorChatService.endSession(chatUser.telegramId.toString())
+    return this.createResponse(MESSAGES.TUTOR_CHAT_ENDED, createMainKeyboardLayout())
+  }
+
+  private async handleTutorChatMessage(chatUser: ChatUser, text: string): Promise<ChatResponse> {
+    const response = await this.tutorChatService.sendMessage(chatUser.telegramId.toString(), text)
+    return this.createResponse(response.reply, createTutorChatKeyboardLayout())
   }
 
   // Settings methods - using shared SettingsService

@@ -19,6 +19,8 @@ import { SettingsHandler } from './handlers/settings.handler'
 import { StatsHandler } from './handlers/stats.handler'
 import { WordEditHandler } from './handlers/word-edit.handler'
 import { SettingsModule } from './services/settings.module'
+import { TutorChatModule } from './services/tutor-chat.module'
+import { TutorChatHandler } from './handlers/tutor-chat.handler'
 
 @Module({
   imports: [
@@ -58,9 +60,11 @@ import { SettingsModule } from './services/settings.module'
     LLMModule,
     forwardRef(() => LearningModule),
     SettingsModule,
+    TutorChatModule,
   ],
   providers: [
     TelegramService,
+    TutorChatHandler,
     StartHandler,
     CommandHandler,
     CallbackHandler,

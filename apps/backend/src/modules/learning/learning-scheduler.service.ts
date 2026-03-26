@@ -5,6 +5,7 @@ import { LearningMode, User } from '@prisma/client'
 import { PrismaService } from '../../common/prisma/prisma.service'
 import { RedisService } from '../../common/redis/redis.service'
 import { TelegramService } from '../telegram/telegram.service'
+import { TutorChatService } from '../telegram/services/tutor-chat.service'
 
 const MAX_PUSH_PER_DAY = 50 // Increased for frequent intervals
 const STALE_SESSION_HOURS = 1 // Auto-abandon sessions older than this
@@ -28,6 +29,7 @@ export class LearningSchedulerService {
     private readonly redis: RedisService,
     @Inject(forwardRef(() => TelegramService))
     private readonly telegramService: TelegramService,
+    private readonly tutorChatService: TutorChatService,
     private readonly logger: PinoLogger,
   ) {
     this.logger.setContext(LearningSchedulerService.name)
@@ -241,6 +243,13 @@ export class LearningSchedulerService {
 
       if (activeSession) {
         this.logger.debug({ userId: user.id }, 'User has active quiz session, skipping push')
+        return
+      }
+
+      // Check if user is in tutor chat mode - don't disturb
+      const isInTutorChat = await this.tutorChatService.isInChatMode(user.telegramId.toString())
+      if (isInTutorChat) {
+        this.logger.debug({ userId: user.id }, 'User is in tutor chat mode, skipping push')
         return
       }
 

@@ -8,9 +8,12 @@ import { QuizService } from '../../quiz/quiz.service'
 import { CollectionsService } from '../../collections/collections.service'
 import { WordEditHandler } from './word-edit.handler'
 import { BulkImportHandler } from './bulk-import.handler'
+import { TutorChatHandler } from './tutor-chat.handler'
+import { TutorChatService } from '../services/tutor-chat.service'
 import { MESSAGES, formatMessage } from '../constants/messages'
 import { createQuizKeyboard } from '../keyboards/quiz.keyboard'
 import { createMainKeyboard } from '../keyboards/main.keyboard'
+import { createTutorChatKeyboard } from '../keyboards/tutor-chat.keyboard'
 import { QuizSessionType } from '@prisma/client'
 import { BulkImportSession, BulkImportState } from '../types/bulk-import.types'
 
@@ -33,6 +36,9 @@ export class QuizHandler {
     private readonly wordEditHandler: WordEditHandler,
     @Inject(forwardRef(() => BulkImportHandler))
     private readonly bulkImportHandler: BulkImportHandler,
+    @Inject(forwardRef(() => TutorChatHandler))
+    private readonly tutorChatHandler: TutorChatHandler,
+    private readonly tutorChatService: TutorChatService,
   ) {
     this.logger.setContext(QuizHandler.name)
   }
@@ -44,6 +50,20 @@ export class QuizHandler {
       const from = ctx.from
       if (!from) {
         await ctx.reply(MESSAGES.ERROR_NOT_REGISTERED)
+        return
+      }
+
+      // Block quiz if in tutor chat mode
+      const isInChat = await this.tutorChatService.isInChatMode(from.id.toString())
+      if (isInChat) {
+        const isCallback = ctx.callbackQuery !== undefined
+        if (isCallback) {
+          await ctx.answerCbQuery(MESSAGES.TUTOR_CHAT_QUIZ_BLOCKED)
+        } else {
+          await ctx.reply(MESSAGES.TUTOR_CHAT_QUIZ_BLOCKED, {
+            ...createTutorChatKeyboard(),
+          })
+        }
         return
       }
 
@@ -250,6 +270,10 @@ export class QuizHandler {
       if (!from || !('text' in ctx.message!)) return
 
       this.logger.info({ telegramId: from.id }, 'QuizHandler received text message')
+
+      // Check if user is in tutor chat mode - delegate to TutorChatHandler
+      const handledByTutor = await this.tutorChatHandler.handleTextInChatMode(ctx)
+      if (handledByTutor) return
 
       // Check if user is in bulk import mode - delegate to BulkImportHandler
       const bulkImportSession = await this.getBulkImportSession(from.id.toString())

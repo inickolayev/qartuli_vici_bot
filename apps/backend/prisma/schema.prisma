@@ -363,6 +363,7 @@ enum LLMOperation {
   WORD_ENRICHMENT
   PHRASE_GENERATION
   PHRASE_VALIDATION
+  TUTOR_CHAT
 }
 
 // ==================== GAMIFICATION ====================

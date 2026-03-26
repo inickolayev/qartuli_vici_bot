@@ -24,3 +24,14 @@ export interface UsageStats {
   completionTokens: number
   totalTokens: number
 }
+
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant'
+  content: string
+}
+
+export interface ChatCompletionResponse {
+  content: string
+  promptTokens: number
+  completionTokens: number
+}

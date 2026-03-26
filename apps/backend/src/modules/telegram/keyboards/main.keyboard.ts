@@ -15,6 +15,7 @@ export function createMainKeyboardLayout(): KeyboardLayout {
       { text: MESSAGES.BUTTON_ACHIEVEMENTS, callbackData: 'achievements:show' },
       { text: MESSAGES.BUTTON_COLLECTIONS, callbackData: 'collections:list' },
     ],
+    [{ text: MESSAGES.BUTTON_TUTOR_CHAT, callbackData: 'tutor:start' }],
     [{ text: MESSAGES.BUTTON_SETTINGS, callbackData: 'settings:open' }],
   ]
 }
