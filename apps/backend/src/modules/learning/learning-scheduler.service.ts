@@ -247,13 +247,13 @@ export class LearningSchedulerService {
       // Calculate how many words remaining for today's goal
       const remaining = user.newWordsPerDay - user.todayNewWordsCount
 
-      // Send push notification
-      const sent = await this.telegramService.sendLearningPush(user.telegramId, {
+      // Send push notification (deletes previous push message automatically)
+      const messageId = await this.telegramService.sendLearningPush(user.telegramId, {
         remaining,
         total: user.newWordsPerDay,
       })
 
-      if (!sent) {
+      if (messageId === null) {
         this.logger.warn({ userId: user.id }, 'Failed to send learning push')
         return
       }
